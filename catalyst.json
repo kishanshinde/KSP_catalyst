@@ -1,0 +1,23 @@
+{
+  "functions": {
+    "targets": [
+      "ai-chat",
+      "test-llm",
+      "chat-intent",
+      "dashboardAggregation",
+      "logEvidence",
+      "saveConversation",
+      "generatePDF",
+      "query",
+      "convokraftHandler"
+    ],
+    "ignore": [],
+    "source": "functions"
+  },
+  "slate": [
+    {
+      "name": "react-vite",
+      "source": "D:\\KSP_catalyst\\react-vite"
+    }
+  ]
+}
