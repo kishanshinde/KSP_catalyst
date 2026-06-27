@@ -4,7 +4,7 @@ const { GoogleGenerativeAI } =
 require("@google/generative-ai");
 
 const genAI =
-new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY
+new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
 
 module.exports = async (req, res) => {
 	res.setHeader('Access-Control-Allow-Origin', '*');

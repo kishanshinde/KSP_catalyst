@@ -1,0 +1,10 @@
+{
+  "name": "catalyst",
+  "version": "1.0.0",
+  "description": "Get single conversation by ROWID",
+  "main": "index.js",
+  "scripts": {},
+  "dependencies": {
+    "zcatalyst-sdk-node": "^3.4.0"
+  }
+}

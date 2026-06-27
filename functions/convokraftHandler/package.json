@@ -1,0 +1,7 @@
+{
+	"main": "index.js",
+	"type": "module",
+	"dependencies": {
+		"zcatalyst-sdk-node": "^2.1.0"
+	}
+}
