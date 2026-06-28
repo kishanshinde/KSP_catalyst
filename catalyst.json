@@ -18,7 +18,7 @@
   "slate": [
     {
       "name": "react-vite",
-      "source": "react-vite"
+      "source": "./react-vite"
     }
   ]
 }
