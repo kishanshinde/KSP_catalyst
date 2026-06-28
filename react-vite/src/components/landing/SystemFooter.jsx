@@ -1,24 +1,20 @@
+import { useLanguage } from '../../contexts/LanguageContext'
+
 export default function SystemFooter() {
+  const { t } = useLanguage()
+
   return (
-    <footer className="px-10 py-5 bg-white border-t border-outline-variant flex justify-between items-center">
-      <div className="flex items-center gap-8">
-        <div className="flex items-center gap-2.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[10px] font-bold font-mono text-slate-400 uppercase tracking-widest">
-            KSP Lumina: Active
-          </span>
-        </div>
-        <div className="text-[10px] font-bold font-mono text-slate-300">
-          LAT: 12.9716° N | LONG: 77.5946° E
-        </div>
+    <footer className="flex items-center justify-between px-8 py-4 border-t border-outline-variant dark:border-slate-700/50 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+      <div className="flex items-center gap-6">
+        <span className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          {t('landing.systemActive')}
+        </span>
+        <span>{t('landing.coordinates')}</span>
       </div>
       <div className="flex items-center gap-6">
-        <span className="text-[10px] font-bold font-mono text-slate-300">
-          ENC: AES-512 QUANTUM-SAFE
-        </span>
-        <span className="text-[10px] font-bold font-mono text-slate-400">
-          SESSION: 04:22:15
-        </span>
+        <span>{t('landing.encryption')}</span>
+        <span>{t('landing.session')}</span>
       </div>
     </footer>
   )

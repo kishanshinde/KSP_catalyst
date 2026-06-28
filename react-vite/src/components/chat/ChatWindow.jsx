@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useChat } from '../../context/ChatContext'
+import { useLanguage } from '../../contexts/LanguageContext'
 import ChatMessage from './ChatMessage'
 import TypingIndicator from './TypingIndicator'
 import ChatInput from './ChatInput'
 
 export default function ChatWindow() {
+  const { t } = useLanguage()
   const { currentConversation, sendMessage, loading, streaming, loadingIntent } = useChat()
   const bottomRef = useRef(null)
 
@@ -31,8 +33,8 @@ export default function ChatWindow() {
         <div ref={bottomRef} />
       </div>
 
-      <div className="shrink-0 px-4 py-3 border-t border-slate-200/30 bg-surface/80 backdrop-blur-sm">
-        <ChatInput onSend={handleSend} disabled={loading} placeholder="Ask a follow-up question..." />
+      <div className="shrink-0 px-4 py-3 border-t border-slate-200/30 dark:border-slate-700/30 bg-surface/80 dark:bg-slate-900/80 backdrop-blur-sm">
+        <ChatInput onSend={handleSend} disabled={loading} placeholder={t('chat.followUpPlaceholder')} />
       </div>
     </div>
   )

@@ -1,20 +1,28 @@
-// TODO: Replace with Recharts line/area chart
-// Expected data format: { months: [], values: [], trend: string, percentChange: number }
+import { useLanguage } from '../../../contexts/LanguageContext'
+
 export default function CrimeTrend({ data }) {
+  const { t } = useLanguage()
+
   if (!data?.months) {
-    return <div className="text-on-surface-variant/60 text-sm">No trend data available</div>
+    return <div className="text-on-surface-variant/60 dark:text-slate-500 text-sm">{t('workspace.noData')}</div>
   }
 
   const max = Math.max(...data.values)
+
+  const trendLabel = {
+    rising: t('workspace.rising'),
+    declining: t('workspace.declining'),
+    stable: t('workspace.stable'),
+  }
 
   return (
     <div className="space-y-3">
       <div className="glass rounded-xl p-4">
         <div className="flex items-center justify-between mb-4">
-          <span className="text-xs font-medium text-on-surface-variant/60 uppercase tracking-wider">
-            Monthly Trend
+          <span className="text-xs font-medium text-on-surface-variant/60 dark:text-slate-400 uppercase tracking-wider">
+            {t('workspace.monthlyTrend')}
           </span>
-          {data.percentChange && (
+          {data.percentChange != null && (
             <span className={`text-xs font-semibold ${data.percentChange < 0 ? 'text-emerald-600' : 'text-error'}`}>
               {data.percentChange > 0 ? '+' : ''}{data.percentChange}%
             </span>
@@ -27,7 +35,7 @@ export default function CrimeTrend({ data }) {
             const height = (val / max) * 100
             return (
               <div key={month} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                <span className="text-xs font-medium text-on-surface-variant/60">{val}</span>
+                <span className="text-xs font-medium text-on-surface-variant/60 dark:text-slate-400">{val}</span>
                 <div
                   className={`w-full rounded-t transition-all duration-500 ${
                     data.trend === 'declining' ? 'bg-emerald-400/60' :
@@ -36,14 +44,14 @@ export default function CrimeTrend({ data }) {
                   }`}
                   style={{ height: `${height}%` }}
                 />
-                <span className="text-[10px] text-on-surface-variant/40">{month}</span>
+                <span className="text-[10px] text-on-surface-variant/40 dark:text-slate-500">{month}</span>
               </div>
             )
           })}
         </div>
 
-        <p className="text-xs text-on-surface-variant/40 mt-3 pt-2 border-t border-slate-200/20">
-          Trend: {data.trend || 'stable'}
+        <p className="text-xs text-on-surface-variant/40 dark:text-slate-500 mt-3 pt-2 border-t border-slate-200/20 dark:border-slate-700/20">
+          {t('workspace.trend')}: {trendLabel[data.trend] || data.trend || t('workspace.stable')}
         </p>
       </div>
     </div>

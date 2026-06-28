@@ -2,8 +2,8 @@ import { forwardRef } from 'react'
 
 const variants = {
   primary: 'bg-primary text-on-primary hover:bg-primary/90 active:scale-[0.98]',
-  secondary: 'bg-white/40 backdrop-blur-md micro-border hover:bg-white/60',
-  ghost: 'bg-transparent hover:bg-white/30 micro-border',
+  secondary: 'bg-white/40 dark:bg-slate-800/40 backdrop-blur-md micro-border hover:bg-white/60 dark:hover:bg-slate-700/60 text-on-surface dark:text-slate-200',
+  ghost: 'bg-transparent hover:bg-white/30 dark:hover:bg-slate-800/50 micro-border text-on-surface dark:text-slate-200',
   danger: 'bg-error text-on-error hover:bg-error/90',
 }
 

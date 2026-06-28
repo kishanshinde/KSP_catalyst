@@ -1,8 +1,11 @@
 import { useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 export default function Modal({ open, onClose, title, children }) {
+  const { t } = useLanguage()
+
   const handleKeyDown = useCallback(
     (e) => {
       if (e.key === 'Escape') onClose?.()
@@ -29,7 +32,7 @@ export default function Modal({ open, onClose, title, children }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm"
             onClick={onClose}
             aria-hidden="true"
           />
@@ -43,9 +46,9 @@ export default function Modal({ open, onClose, title, children }) {
             aria-modal="true"
             aria-label={title}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/50">
-              <h2 className="text-lg font-semibold text-on-surface">{title}</h2>
-              <button onClick={onClose} className="p-1 rounded-lg hover:bg-surface-container transition-colors" aria-label="Close modal">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/50 dark:border-slate-700/50">
+              <h2 className="text-lg font-semibold text-on-surface dark:text-white">{title}</h2>
+              <button onClick={onClose} className="p-1 rounded-lg hover:bg-surface-container dark:hover:bg-slate-800 transition-colors" aria-label={t('common.closeModal')}>
                 <X size={20} />
               </button>
             </div>

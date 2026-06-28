@@ -1,11 +1,14 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import { useLanguage } from '../../contexts/LanguageContext'
 import { workspaceRegistry } from './registry'
 
 export default function DynamicWorkspace({ workspace }) {
+  const { t } = useLanguage()
+
   if (!workspace || !workspace.type) {
     return (
-      <div className="flex items-center justify-center h-full text-on-surface-variant/40">
-        <p className="text-sm">Select a conversation to view analysis</p>
+      <div className="flex items-center justify-center h-full text-on-surface-variant/40 dark:text-slate-500">
+        <p className="text-sm">{t('workspace.selectConversation')}</p>
       </div>
     )
   }
@@ -14,8 +17,8 @@ export default function DynamicWorkspace({ workspace }) {
 
   if (!Component) {
     return (
-      <div className="flex items-center justify-center h-full text-on-surface-variant/40">
-        <p className="text-sm">Unknown workspace type: {workspace.type}</p>
+      <div className="flex items-center justify-center h-full text-on-surface-variant/40 dark:text-slate-500">
+        <p className="text-sm">{t('workspace.unknownType')}: {workspace.type}</p>
       </div>
     )
   }
@@ -32,7 +35,7 @@ export default function DynamicWorkspace({ workspace }) {
       >
         {workspace.title && (
           <div className="px-5 pt-5 pb-3">
-            <h2 className="text-base font-semibold text-on-surface">{workspace.title}</h2>
+            <h2 className="text-base font-semibold text-on-surface dark:text-white">{workspace.title}</h2>
           </div>
         )}
         <div className="px-5 pb-5">

@@ -2,13 +2,13 @@ import { createContext, useContext, useState, useCallback, useMemo, useEffect, u
 import { generateId } from '../utils/formatters'
 import { api } from '../services/api'
 import { getWorkspaceTypeFromIntent } from '../utils/helpers'
-import { useApp } from './AppContext'
+import { useLanguage } from '../contexts/LanguageContext'
 
 const ChatContext = createContext(null)
 
-function formatResultsToText(results) {
+function formatResultsToText(results, t) {
   if (!results || (Array.isArray(results) && results.length === 0)) {
-    return 'No results found.'
+    return t('chat.noResultsFound')
   }
   const rows = Array.isArray(results) ? results : [results]
   const lines = rows.map((r) => {
@@ -26,7 +26,7 @@ function formatResultsToText(results) {
 }
 
 export function ChatProvider({ children }) {
-  const { language } = useApp()
+  const { language, t } = useLanguage()
 
   const [conversations, setConversations] = useState([])
   const [currentId, setCurrentId] = useState(null)
@@ -221,9 +221,9 @@ export function ChatProvider({ children }) {
 
       let intentResult
       try {
-        intentResult = await api.classifyIntent({ question: text })
+        intentResult = await api.classifyIntent({ question: text, language })
       } catch (err) {
-        const errMsg = 'Unable to understand your request. Please try again.'
+        const errMsg = t('chat.errorUnableToUnderstand')
         setError(errMsg)
         setConversations((prev) =>
           prev.map((c) =>
@@ -265,13 +265,14 @@ export function ChatProvider({ children }) {
       try {
         queryResult = await api.query({
           intent,
+          language,
           ...(accused_name && { accused_name }),
           ...(fir_number && { fir_number }),
           ...(victim_name && { victim_name }),
           ...(location_name && { location_name }),
         })
       } catch (err) {
-        const errMsg = 'Unable to retrieve crime records. Please try again.'
+        const errMsg = t('chat.errorUnableToRetrieve')
         setError(errMsg)
         setConversations((prev) =>
           prev.map((c) =>
@@ -316,8 +317,8 @@ export function ChatProvider({ children }) {
       const responseText =
         queryResult.text ||
         queryResult.summary ||
-        formatResultsToText(queryResult.rows || queryResult.results) ||
-        'Analysis complete. Check the workspace panel for details.'
+        formatResultsToText(queryResult.rows || queryResult.results, t) ||
+        t('chat.analysisComplete')
 
       // --- Stream response ---
       setStreaming(true)
