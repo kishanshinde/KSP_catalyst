@@ -14,7 +14,7 @@ module.exports = async (req, res) => {
         return res.end();
     }
 
-    const ACCESS_TOKEN = "1000.7d757e120d7340e3fcbd57ace7bc34f2.f42d2badf91a04c9c6c287aa1a1f04de";
+    const ACCESS_TOKEN = "1000.dd37c43419e20e428af77226b849cdb5.264a5c930daaeb6015cc3fdf5ca1b99c";
 
     let body = '';
 
@@ -75,16 +75,20 @@ module.exports = async (req, res) => {
     `;
 
             const payload = JSON.stringify({
-                model: "crm-di-qwen_text_14b-fp8-it",
+                model: "crm-di-glm47b_30b_it",
                 prompt: prompt,
                 system_prompt: system_prompt,
-                temperature: 0.1,
-                max_tokens: 300
+                temperature: 0.7,
+                max_tokens: 500,
+                stream: false,
+                chat_template_kwargs: {
+                            enable_thinking: true
+                }
             });
 
             const options = {
                 hostname: 'api.catalyst.zoho.in',
-                path: '/quickml/v2/project/47024000000013051/llm/chat',
+                path: 'quickml/v1/project/47024000000013051/glm/chat',
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
