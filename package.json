@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "scripts": {
+    "serve": "catalyst serve --no-open --except functions:convokraftHandler",
+    "serve:open": "catalyst serve --except functions:convokraftHandler"
+  }
+}
