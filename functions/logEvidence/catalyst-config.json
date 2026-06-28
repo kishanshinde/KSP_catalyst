@@ -1,0 +1,20 @@
+{
+  "execution": {
+    "main": "index.js"
+  },
+  "deployment": {
+    "stack": "node24",
+    "name": "logEvidence",
+    "type": "advancedio"
+  },
+  "routes": [
+    {
+      "path": "/",
+      "method": "ANY"
+    },
+    {
+      "path": "/*",
+      "method": "ANY"
+    }
+  ]
+}

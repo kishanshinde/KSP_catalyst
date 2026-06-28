@@ -1,0 +1,65 @@
+{
+  "defaults": {
+    "project": 1,
+    "env": 1
+  },
+  "actives": {
+    "project": 1,
+    "env": 1
+  },
+  "projects": [
+    {
+      "idx": 1,
+      "id": "47024000000013051",
+      "name": "Techsonic-Crime-Intelligence",
+      "domain": {
+        "id": "50042895276",
+        "name": "techsonic-crime-intelligence-60073436832.development"
+      },
+      "timezone": "Asia/Kolkata",
+      "env": [
+        {
+          "idx": 1,
+          "id": "60073436832",
+          "name": "Development",
+          "type": 3,
+          "env_status": "Active",
+          "project_details": {
+            "project_name": "Techsonic-Crime-Intelligence",
+            "id": "47024000000013051",
+            "project_type": "Live"
+          },
+          "is_default": false,
+          "action_required": false
+        },
+        {
+          "idx": 2,
+          "id": "50043092771",
+          "name": "Production",
+          "type": 1,
+          "env_status": "Active",
+          "project_details": {
+            "project_name": "Techsonic-Crime-Intelligence",
+            "id": "47024000000013051",
+            "project_type": "Live"
+          },
+          "is_default": true,
+          "clone_env_id": "60073436832",
+          "migrated_services": {
+            "migrated_services": [
+              "Settings",
+              "Cloud Scale",
+              "Serverless",
+              "Zia",
+              "DevOps",
+              "Signals",
+              "Job Scheduling"
+            ],
+            "is_catalyst_migrated": true
+          },
+          "action_required": false
+        }
+      ]
+    }
+  ]
+}

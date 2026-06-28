@@ -1,0 +1,24 @@
+{
+  "functions": {
+    "targets": [
+      "ai-chat",
+      "test-llm",
+      "chat-intent",
+      "dashboardAggregation",
+      "getConversation",
+      "logEvidence",
+      "saveConversation",
+      "generatePDF",
+      "query",
+      "convokraftHandler"
+    ],
+    "ignore": [],
+    "source": "functions"
+  },
+  "slate": [
+    {
+      "name": "react-vite",
+      "source": "react-vite"
+    }
+  ]
+}
