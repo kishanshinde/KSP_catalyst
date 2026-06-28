@@ -1,5 +1,3 @@
-// TODO: Replace with real-time alert stream from backend
-// Expected data format: [{ type, message, time }]
 import { AlertTriangle, AlertCircle, Info } from 'lucide-react'
 
 export default function RecentAlerts({ data }) {
@@ -21,8 +19,8 @@ export default function RecentAlerts({ data }) {
           <div key={i} className={`flex items-start gap-3 p-3 rounded-lg ${bgColors[a.type] || bgColors.info}`}>
             <Icon size={16} className={`${colors[a.type] || colors.info} mt-0.5 shrink-0`} />
             <div className="flex-1 min-w-0">
-              <p className="text-sm">{a.message}</p>
-              <span className="text-xs text-on-surface-variant/40">{a.time}</span>
+              <p className="text-sm text-on-surface dark:text-slate-200">{a.message}</p>
+              <span className="text-xs text-on-surface-variant/40 dark:text-slate-500">{a.time}</span>
             </div>
           </div>
         )

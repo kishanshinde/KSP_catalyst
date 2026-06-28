@@ -39,11 +39,11 @@ export default function Dropdown({ trigger, items, align = 'right', className = 
               <button
                 key={i}
                 onClick={() => { item.onClick?.(); setOpen(false) }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-on-surface hover:bg-surface-container transition-colors duration-150"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-on-surface dark:text-slate-200 hover:bg-surface-container dark:hover:bg-slate-800 transition-colors duration-150"
                 role="menuitem"
                 tabIndex={-1}
               >
-                {item.icon && <span className="text-on-surface-variant shrink-0">{item.icon}</span>}
+                {item.icon && <span className="text-on-surface-variant dark:text-slate-400 shrink-0">{item.icon}</span>}
                 <span>{item.label}</span>
               </button>
             ))}

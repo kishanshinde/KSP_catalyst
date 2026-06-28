@@ -39,7 +39,8 @@ export default {
         full: '9999px',
       },
       spacing: {
-        'sidebar-width': '280px',
+        'sidebar-width': '300px',
+        'sidebar-collapsed': '72px',
         'margin-page': '40px',
       },
       maxWidth: {

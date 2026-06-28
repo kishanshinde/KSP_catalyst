@@ -1,20 +1,20 @@
-export function formatDate(date) {
-  return new Intl.DateTimeFormat('en-IN', {
+export function formatDate(date, locale = 'en-IN') {
+  return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   }).format(new Date(date))
 }
 
-export function formatTime(date) {
-  return new Intl.DateTimeFormat('en-IN', {
+export function formatTime(date, locale = 'en-IN') {
+  return new Intl.DateTimeFormat(locale, {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(date))
 }
 
-export function formatDateTime(date) {
-  return new Intl.DateTimeFormat('en-IN', {
+export function formatDateTime(date, locale = 'en-IN') {
+  return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -23,8 +23,8 @@ export function formatDateTime(date) {
   }).format(new Date(date))
 }
 
-export function formatNumber(num) {
-  return new Intl.NumberFormat('en-IN').format(num)
+export function formatNumber(num, locale = 'en-IN') {
+  return new Intl.NumberFormat(locale).format(num)
 }
 
 export function truncate(str, max = 50) {
