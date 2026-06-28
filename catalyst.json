@@ -5,6 +5,7 @@
       "test-llm",
       "chat-intent",
       "dashboardAggregation",
+      "getConversation",
       "logEvidence",
       "saveConversation",
       "generatePDF",
@@ -17,7 +18,7 @@
   "slate": [
     {
       "name": "react-vite",
-      "source": "D:\\KSP_catalyst\\react-vite"
+      "source": "react-vite"
     }
   ]
 }
