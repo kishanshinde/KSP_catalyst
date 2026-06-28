@@ -14,7 +14,15 @@ module.exports = async (req, res) => {
         return res.end();
     }
 
-    const ACCESS_TOKEN = "1000.dd37c43419e20e428af77226b849cdb5.264a5c930daaeb6015cc3fdf5ca1b99c";
+    const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+
+    if (!ACCESS_TOKEN) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({
+            intent: 'search_fir',
+            error: 'ACCESS_TOKEN is not configured'
+        }));
+    }
 
     let body = '';
 
