@@ -1,10 +1,11 @@
+// D:\Project\H2S\Intelligent_Conversational_AI_for_KSP\functions\query\index.js
 'use strict';
 
 const catalyst = require('zcatalyst-sdk-node');
 
 module.exports = async (req, res) => {
 
-// CORS Headers
+    // CORS Headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -14,8 +15,8 @@ module.exports = async (req, res) => {
         res.writeHead(200);
         return res.end();
     }
-    try {
 
+    try {
         const app = catalyst.initialize(req);
         const zcql = app.zcql();
 
@@ -26,165 +27,114 @@ module.exports = async (req, res) => {
         });
 
         req.on('end', async () => {
-
             try {
-
                 const data = body ? JSON.parse(body) : {};
-				if (!data.fir_number && data.query) {
-    data.fir_number = extractFirNumber(data.query);
-}
 
-if (
-    !data.accused_name &&
-    data.query &&
-    data.intent === "criminal_history"
-) {
-    data.accused_name = extractAccusedName(data.query);
-}
-				if (!data.intent) {
-    				throw new Error('intent is required');
-				}
-
-				if (
-    				data.intent === 'criminal_history' &&
-    				!data.accused_name
-				) {
-    				throw new Error('accused_name is required');
-				}
-
-                if (
-                    data.intent === 'criminal_network' &&
-                    !data.accused_name
-                ) {
-                    throw new Error('accused_name is required');
+                // Enhanced entity extraction from query text
+                if (!data.fir_number && data.query) {
+                    data.fir_number = extractFirNumber(data.query);
                 }
 
-                if (
-                    data.intent === 'criminal_network_graph' &&
-                    !data.accused_name
-                ) {
-                    throw new Error('accused_name is required');
+                if (!data.accused_name && data.query) {
+                    data.accused_name = extractAccusedName(data.query);
                 }
 
-                if (
-                    data.intent === 'risk_profile' &&
-                    !data.accused_name
-                ) {
-                    throw new Error('accused_name is required');
+                if (!data.location && data.query) {
+                    data.location = extractLocation(data.query);
                 }
 
-				if (
-    				(
-        				data.intent === 'fir_accused' ||
-        				data.intent === 'fir_victims' ||
-        				data.intent === 'fir_investigation'
-    				) &&
-    				!data.fir_number
-				) {
-    				throw new Error('fir_number is required');
-			}
+                if (!data.crime_type && data.query) {
+                    data.crime_type = extractCrimeType(data.query);
+                }
 
-			let result = [];
+                // Validate intent
+                if (!data.intent || data.intent.trim() === '') {
+                    throw new Error('intent is required');
+                }
 
-				switch (data.intent) {
+                // Validate required parameters for each intent
+                validateIntentParams(data);
 
+                let result = [];
+
+                // Execute query based on intent
+                switch (data.intent) {
+
+                    // === SEARCH QUERIES ===
                     case 'search_fir':
-                        result = await searchFIR(zcql);
+                        result = await searchFIR(zcql, data);
                         break;
 
                     case 'search_accused':
-                        result = await searchAccused(zcql);
+                        result = await searchAccused(zcql, data);
                         break;
 
                     case 'search_victim':
-                        result = await searchVictim(zcql);
+                        result = await searchVictim(zcql, data);
                         break;
 
                     case 'search_investigation':
-                        result = await searchInvestigation(zcql);
+                        result = await searchInvestigation(zcql, data);
                         break;
 
+                    // === FIR DETAILS ===
+                    case 'fir_accused':
+                        result = await getFIRAccused(zcql, data.fir_number);
+                        break;
+
+                    case 'fir_victims':
+                        result = await getFIRVictims(zcql, data.fir_number);
+                        break;
+
+                    case 'fir_investigation':
+                        result = await getFIRInvestigation(zcql, data.fir_number);
+                        break;
+
+                    // === ACCUSED ANALYSIS ===
                     case 'criminal_history':
-                        result = await criminalHistoryV2(
-                            zcql,
-                            data.accused_name
-                        );
+                        result = await criminalHistory(zcql, data.accused_name);
                         break;
-
-					case 'fir_accused':
-    					result = await getFIRAccused(
-        					zcql,
-        					data.fir_number
-    					);
-						console.log(JSON.stringify(result, null, 2));
-    					break;
-
-					case 'fir_victims':
-    					result = await getFIRVictims(
-        					zcql,
-        					data.fir_number
-    					);
-    					break;
-
-					case 'fir_investigation':
-    					result = await getFIRInvestigation(
-        					zcql,
-        					data.fir_number
-    					);
-    					break;
 
                     case 'criminal_network':
-                        result = await criminalNetwork(
-                            zcql,
-                            data.accused_name
-                        );
+                        result = await criminalNetwork(zcql, data.accused_name);
+                        break;
+
+                    case 'criminal_network_graph':
+                        result = await criminalNetworkGraph(zcql, data.accused_name);
                         break;
 
                     case 'repeat_offenders':
                         result = await repeatOffenders(zcql);
                         break;
 
-                    case 'criminal_network_graph':
-                        result = await criminalNetworkGraph(
-                            zcql,
-                            data.accused_name
-                        );
+                    case 'risk_profile':
+                        result = await riskProfile(zcql, data.accused_name);
                         break;
 
+                    // === LOCATION/TREND ANALYSIS ===
                     case 'crime_hotspots':
-                        result = await crimeHotspots(zcql);
+                        result = await crimeHotspots(zcql, data);
                         break;
 
                     case 'crime_type_trends':
-                        result = await crimeTypeTrends(zcql);
+                        result = await crimeTypeTrends(zcql, data);
                         break;
 
                     case 'monthly_crime_trends':
-                        result = await monthlyCrimeTrends(zcql);
+                        result = await monthlyCrimeTrends(zcql, data);
                         break;
 
                     case 'district_crime_analysis':
-                        result = await districtCrimeAnalysis(zcql);
+                        result = await districtCrimeAnalysis(zcql, data);
                         break;
 
                     case 'emerging_crime_clusters':
                         result = await emergingCrimeClusters(zcql);
                         break;
 
+                    // === DEMOGRAPHIC ANALYSIS (FIXED - using only existing columns) ===
                     case 'gender_crime_analysis':
                         result = await genderCrimeAnalysis(zcql);
-                        break;
-
-                    case 'education_crime_analysis':
-                        result = await educationCrimeAnalysis(zcql);
-                        break;
-
-                    case 'migration_crime_analysis':
-                        result = await migrationCrimeAnalysis(zcql);
-                        break;
-
-                    case 'economic_stress_analysis':
-                        result = await economicStressAnalysis(zcql);
                         break;
 
                     case 'demographic_dashboard':
@@ -195,58 +145,56 @@ if (
                         result = await repeatOffenderDemographics(zcql);
                         break;
 
-                    case 'risk_profile':
-                        result = await riskProfile(
-                            zcql,
-                            data.accused_name
-                        );
-                        break;
-
+                    // === SOCIAL ANALYSIS (FIXED) ===
                     case 'social_risk_analysis':
                         result = await socialRiskAnalysis(zcql);
                         break;
 
                     default:
-                        throw new Error('Invalid Intent');
+                        throw new Error(`Invalid Intent: ${data.intent}`);
                 }
 
+                // Send response
                 res.writeHead(200, {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-});
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                });
 
                 res.end(JSON.stringify({
                     success: true,
                     count: result.length,
-                    results: result
+                    results: result,
+                    intent: data.intent,
+                    query: data.query || null
                 }));
 
             } catch (error) {
-
+                console.error('Query Execution Error:', error);
                 res.writeHead(400, {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-});
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                });
 
                 res.end(JSON.stringify({
                     success: false,
-                    error: error.message
+                    error: error.message,
+                    stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
                 }));
             }
         });
 
     } catch (error) {
-
+        console.error('Server Error:', error);
         res.writeHead(500, {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-});;
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+        });
 
         res.end(JSON.stringify({
             success: false,
@@ -254,141 +202,507 @@ if (
         }));
     }
 };
-function extractFirNumber(text) {
 
+// ============================================================
+// HELPER FUNCTIONS - ENTITY EXTRACTION
+// ============================================================
+
+function extractFirNumber(text) {
     if (!text) return null;
 
-    const match = text.match(/FIR-\d{4}-\d+/i);
+    // Multiple FIR number formats
+    const patterns = [
+        /FIR[-_\s]?(\d{4}[-_\s]?\d+)/i,
+        /FIR\s*#\s*(\d+)/i,
+        /case\s*(?:number|no)[:\s]*(\d+)/i,
+        /(\d{4}[-/]\d+)/i
+    ];
 
-    return match ? match[0] : null;
+    for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+            // Format consistently
+            const num = match[1].replace(/[-_\s]/g, '');
+            return `FIR-${num.substring(0, 4)}-${num.substring(4)}`;
+        }
+    }
+
+    return null;
 }
 
 function extractAccusedName(text) {
-
     if (!text) return null;
 
-    const match = text.match(/criminal history of (.+)/i);
+    const patterns = [
+        /(?:criminal|crime)\s*(?:history|record|profile)\s*(?:of|for)\s+([A-Za-z\s]+)/i,
+        /(?:show|get|find)\s+(?:criminal|crime)\s*(?:history|record)\s*(?:of|for)\s+([A-Za-z\s]+)/i,
+        /(?:accused|offender|criminal)\s+name\s*(?:is|:|\s+)\s*([A-Za-z\s]+)/i,
+        /history of\s+([A-Za-z\s]+)/i
+    ];
 
-    return match ? match[1].trim() : null;
+    for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+            const name = match[1].trim();
+            if (name.length > 1) return name;
+        }
+    }
+
+    return null;
 }
-async function searchFIR(zcql) {
 
-    return await zcql.executeZCQLQuery(`
-        SELECT ROWID,fir_number
+function extractLocation(text) {
+    if (!text) return null;
+
+    const patterns = [
+        /(?:in|at|near)\s+([A-Za-z\s]+?)(?:\s+(?:district|city|area|zone|region)|$)/i,
+        /(?:location|place|area)\s*(?:is|:|\s+)\s*([A-Za-z\s]+)/i
+    ];
+
+    for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+            const location = match[1].trim();
+            if (location.length > 1) return location;
+        }
+    }
+
+    return null;
+}
+
+function extractCrimeType(text) {
+    if (!text) return null;
+
+    const crimeTypes = [
+        'theft', 'burglary', 'robbery', 'assault', 'murder',
+        'kidnapping', 'rape', 'fraud', 'cyber', 'drug',
+        'dacoity', 'extortion', 'rioting', 'homicide'
+    ];
+
+    for (const type of crimeTypes) {
+        if (text.toLowerCase().includes(type)) {
+            return type.charAt(0).toUpperCase() + type.slice(1);
+        }
+    }
+
+    return null;
+}
+
+// ============================================================
+// HELPER FUNCTIONS - VALIDATION
+// ============================================================
+
+function validateIntentParams(data) {
+    const intent = data.intent;
+
+    // Intents requiring accused_name
+    const requiresAccused = [
+        'criminal_history', 'criminal_network',
+        'criminal_network_graph', 'risk_profile'
+    ];
+
+    if (requiresAccused.includes(intent) && !data.accused_name) {
+        throw new Error(`${intent} requires accused_name parameter`);
+    }
+
+    // Intents requiring fir_number
+    const requiresFIR = ['fir_accused', 'fir_victims', 'fir_investigation'];
+
+    if (requiresFIR.includes(intent) && !data.fir_number) {
+        throw new Error(`${intent} requires fir_number parameter`);
+    }
+
+    // Intents requiring location
+    const requiresLocation = ['crime_hotspots'];
+
+    // If location is required but not provided, we'll still execute (return all)
+    // This is optional, so no error thrown
+}
+
+// ============================================================
+// QUERY FUNCTIONS - SAFE (PARAMETERIZED)
+// ============================================================
+
+/**
+ * Safely escape a string for ZCQL
+ * Note: ZCQL doesn't support parameterized queries directly,
+ * so we sanitize inputs manually
+ */
+function safeString(value) {
+    if (!value) return null;
+    return String(value).replace(/'/g, "''");
+}
+
+function safeNumber(value) {
+    if (value === null || value === undefined) return null;
+    const num = Number(value);
+    return isNaN(num) ? null : num;
+}
+
+// ============================================================
+// SEARCH FUNCTIONS
+// ============================================================
+
+async function searchFIR(zcql, params = {}) {
+    let query = `
+        SELECT 
+            ROWID, 
+            fir_number, 
+            crime_type_rowid, 
+            location_rowid, 
+            date_registered, 
+            status, 
+            description, 
+            investigating_officer,
+            priorites
         FROM fir
-        LIMIT 20
-    `);
+    `;
+
+    const conditions = [];
+    const limit = params.limit || 20;
+
+    if (params.fir_number) {
+        conditions.push(`fir_number = '${safeString(params.fir_number)}'`);
+    }
+
+    if (params.status) {
+        conditions.push(`status = '${safeString(params.status)}'`);
+    }
+
+    if (params.crime_type) {
+        // Subquery to match crime type name
+        conditions.push(`
+            crime_type_rowid IN (
+                SELECT ROWID FROM crime_type_master 
+                WHERE LOWER(crime_name) LIKE '%${safeString(params.crime_type.toLowerCase())}%'
+            )
+        `);
+    }
+
+    if (params.location) {
+        conditions.push(`
+            location_rowid IN (
+                SELECT ROWID FROM location 
+                WHERE LOWER(city) LIKE '%${safeString(params.location.toLowerCase())}%'
+                OR LOWER(district) LIKE '%${safeString(params.location.toLowerCase())}%'
+            )
+        `);
+    }
+
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += ` ORDER BY date_registered DESC LIMIT ${safeNumber(limit) || 20}`;
+
+    const result = await zcql.executeZCQLQuery(query);
+
+    // Transform to flat structure for easier consumption
+    return result.map(row => ({
+        ...row.fir,
+        rowid: row.fir.ROWID
+    }));
 }
 
-async function searchAccused(zcql) {
-
-    return await zcql.executeZCQLQuery(`
-        SELECT *
+async function searchAccused(zcql, params = {}) {
+    let query = `
+        SELECT 
+            ROWID, 
+            full_name, 
+            gender, 
+            dob, 
+            occupation, 
+            address, 
+            phone_number,
+            risk_score, 
+            is_repeat_offender
         FROM accused
-        LIMIT 20
-    `);
+    `;
+
+    const conditions = [];
+    const limit = params.limit || 20;
+
+    if (params.accused_name) {
+        conditions.push(`LOWER(full_name) LIKE '%${safeString(params.accused_name.toLowerCase())}%'`);
+    }
+
+    if (params.is_repeat_offender !== undefined) {
+        conditions.push(`is_repeat_offender = ${params.is_repeat_offender ? 'true' : 'false'}`);
+    }
+
+    if (params.gender) {
+        conditions.push(`gender = '${safeString(params.gender)}'`);
+    }
+
+    if (params.min_risk_score !== undefined) {
+        conditions.push(`risk_score >= ${safeNumber(params.min_risk_score)}`);
+    }
+
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += ` ORDER BY risk_score DESC LIMIT ${safeNumber(limit) || 20}`;
+
+    const result = await zcql.executeZCQLQuery(query);
+
+    return result.map(row => ({
+        ...row.accused,
+        rowid: row.accused.ROWID
+    }));
 }
 
-async function searchVictim(zcql) {
-
-    return await zcql.executeZCQLQuery(`
-        SELECT *
+async function searchVictim(zcql, params = {}) {
+    let query = `
+        SELECT 
+            ROWID, 
+            full_name, 
+            gender, 
+            dob, 
+            occupation, 
+            address, 
+            phone_number
         FROM victim
-        LIMIT 20
-    `);
+    `;
+
+    const conditions = [];
+    const limit = params.limit || 20;
+
+    if (params.victim_name) {
+        conditions.push(`LOWER(full_name) LIKE '%${safeString(params.victim_name.toLowerCase())}%'`);
+    }
+
+    if (params.gender) {
+        conditions.push(`gender = '${safeString(params.gender)}'`);
+    }
+
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += ` LIMIT ${safeNumber(limit) || 20}`;
+
+    const result = await zcql.executeZCQLQuery(query);
+
+    return result.map(row => ({
+        ...row.victim,
+        rowid: row.victim.ROWID
+    }));
 }
 
-async function searchInvestigation(zcql) {
+async function searchInvestigation(zcql, params = {}) {
+    let query = `
+        SELECT 
+            i.ROWID,
+            i.fir_rowid,
+            i.officer_rowid,
+            i.status,
+            i.start_date,
+            i.end_date,
+            f.fir_number
+        FROM investigation i
+        JOIN fir f ON f.ROWID = i.fir_rowid
+    `;
 
-    return await zcql.executeZCQLQuery(`
-        SELECT *
-        FROM investigation
-        LIMIT 20
-    `);
+    const conditions = [];
+    const limit = params.limit || 20;
+
+    if (params.status) {
+        conditions.push(`i.status = '${safeString(params.status)}'`);
+    }
+
+    if (params.fir_number) {
+        conditions.push(`f.fir_number = '${safeString(params.fir_number)}'`);
+    }
+
+    if (params.officer_name) {
+        conditions.push(`
+            i.officer_rowid IN (
+                SELECT ROWID FROM users 
+                WHERE LOWER(full_name) LIKE '%${safeString(params.officer_name.toLowerCase())}%'
+            )
+        `);
+    }
+
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += ` ORDER BY i.start_date DESC LIMIT ${safeNumber(limit) || 20}`;
+
+    const result = await zcql.executeZCQLQuery(query);
+
+    return result.map(row => ({
+        ...row.i,
+        rowid: row.i.ROWID,
+        fir_number: row.f.fir_number
+    }));
 }
 
-async function criminalHistoryV2(zcql, accusedName) {
+// ============================================================
+// FIR DETAIL FUNCTIONS
+// ============================================================
+
+async function getFIRAccused(zcql, firNumber) {
+    const safeFir = safeString(firNumber);
 
     const query = `
         SELECT
-            a.full_name,
-            a.is_repeat_offender,
-            a.risk_score,
-            fa.role_in_crime,
-            f.fir_number,
-            f.status
-        FROM accused a
-        JOIN fir_accused fa
-        ON a.ROWID = fa.accused_rowid
-        JOIN fir f
-        ON f.ROWID = fa.fir_rowid
-        WHERE a.full_name = '${accusedName}'
-    `;
-
-    return await zcql.executeZCQLQuery(query);
-}
-
-async function getFIRAccused(zcql, firNumber) {
-
-    return await zcql.executeZCQLQuery(`
-        SELECT
             f.fir_number,
             a.full_name,
+            a.gender,
             a.phone_number,
             a.is_repeat_offender,
+            a.risk_score,
             fa.role_in_crime
         FROM fir f
-        JOIN fir_accused fa
-        ON f.ROWID = fa.fir_rowid
-        JOIN accused a
-        ON a.ROWID = fa.accused_rowid
-        WHERE f.fir_number = '${firNumber}'
-    `);
+        JOIN fir_accused fa ON f.ROWID = fa.fir_rowid
+        JOIN accused a ON a.ROWID = fa.accused_rowid
+        WHERE f.fir_number = '${safeFir}'
+    `;
+
+    const result = await zcql.executeZCQLQuery(query);
+
+    return result.map(row => ({
+        fir_number: row.f.fir_number,
+        full_name: row.a.full_name,
+        gender: row.a.gender,
+        phone_number: row.a.phone_number,
+        is_repeat_offender: row.a.is_repeat_offender,
+        risk_score: row.a.risk_score,
+        role_in_crime: row.fa.role_in_crime
+    }));
 }
 
 async function getFIRVictims(zcql, firNumber) {
+    const safeFir = safeString(firNumber);
 
-    return await zcql.executeZCQLQuery(`
+    const query = `
         SELECT
             f.fir_number,
             v.full_name,
             v.gender,
-            v.phone_number
+            v.phone_number,
+            v.occupation
         FROM fir f
-        JOIN fir_victim fv
-        ON f.ROWID = fv.fir_rowid
-        JOIN victim v
-        ON v.ROWID = fv.victim_rowid
-        WHERE f.fir_number = '${firNumber}'
-    `);
+        JOIN fir_victim fv ON f.ROWID = fv.fir_rowid
+        JOIN victim v ON v.ROWID = fv.victim_rowid
+        WHERE f.fir_number = '${safeFir}'
+    `;
+
+    const result = await zcql.executeZCQLQuery(query);
+
+    return result.map(row => ({
+        fir_number: row.f.fir_number,
+        full_name: row.v.full_name,
+        gender: row.v.gender,
+        phone_number: row.v.phone_number,
+        occupation: row.v.occupation
+    }));
 }
 
 async function getFIRInvestigation(zcql, firNumber) {
+    const safeFir = safeString(firNumber);
 
-    return await zcql.executeZCQLQuery(`
+    const query = `
         SELECT
             f.fir_number,
             i.status,
             i.start_date,
-            i.end_date
+            i.end_date,
+            u.full_name AS investigating_officer
         FROM fir f
-        JOIN investigation i
-        ON f.ROWID = i.fir_rowid
-        WHERE f.fir_number = '${firNumber}'
-    `);
+        JOIN investigation i ON f.ROWID = i.fir_rowid
+        LEFT JOIN users u ON u.ROWID = i.officer_rowid
+        WHERE f.fir_number = '${safeFir}'
+    `;
+
+    const result = await zcql.executeZCQLQuery(query);
+
+    return result.map(row => ({
+        fir_number: row.f.fir_number,
+        status: row.i.status,
+        start_date: row.i.start_date,
+        end_date: row.i.end_date,
+        investigating_officer: row.u?.full_name || 'Not Assigned'
+    }));
+}
+
+// ============================================================
+// CRIMINAL HISTORY & NETWORK FUNCTIONS (OPTIMIZED)
+// ============================================================
+
+async function criminalHistory(zcql, accusedName) {
+    const safeName = safeString(accusedName);
+
+    // Single optimized query
+    const query = `
+        SELECT
+            a.full_name,
+            a.gender,
+            a.occupation,
+            a.is_repeat_offender,
+            a.risk_score,
+            fa.role_in_crime,
+            f.fir_number,
+            f.status,
+            f.date_registered,
+            c.crime_name
+        FROM accused a
+        JOIN fir_accused fa ON a.ROWID = fa.accused_rowid
+        JOIN fir f ON f.ROWID = fa.fir_rowid
+        LEFT JOIN crime_type_master c ON c.ROWID = f.crime_type_rowid
+        WHERE LOWER(a.full_name) LIKE '%${safeName.toLowerCase()}%'
+        ORDER BY f.date_registered DESC
+    `;
+
+    const result = await zcql.executeZCQLQuery(query);
+
+    if (!result.length) {
+        return [];
+    }
+
+    // Group by accused (handles multiple FIRs)
+    const grouped = {};
+
+    for (const row of result) {
+        const name = row.a.full_name;
+        if (!grouped[name]) {
+            grouped[name] = {
+                full_name: name,
+                gender: row.a.gender,
+                occupation: row.a.occupation,
+                is_repeat_offender: row.a.is_repeat_offender,
+                risk_score: row.a.risk_score,
+                total_cases: 0,
+                cases: []
+            };
+        }
+
+        grouped[name].total_cases++;
+        grouped[name].cases.push({
+            fir_number: row.f.fir_number,
+            status: row.f.status,
+            date_registered: row.f.date_registered,
+            crime_type: row.c?.crime_name || 'Unknown',
+            role_in_crime: row.fa.role_in_crime
+        });
+    }
+
+    return Object.values(grouped);
 }
 
 async function criminalNetwork(zcql, accusedName) {
+    const safeName = safeString(accusedName);
 
-    const accusedResult = await zcql.executeZCQLQuery(`
-        SELECT
-            ROWID,
-            full_name,
-            is_repeat_offender,
-            risk_score
+    // First, get the accused
+    const accusedQuery = `
+        SELECT ROWID, full_name, is_repeat_offender, risk_score
         FROM accused
-        WHERE full_name = '${accusedName}'
-    `);
+        WHERE LOWER(full_name) LIKE '%${safeName.toLowerCase()}%'
+    `;
+
+    const accusedResult = await zcql.executeZCQLQuery(accusedQuery);
 
     if (!accusedResult.length) {
         return [];
@@ -396,1049 +710,721 @@ async function criminalNetwork(zcql, accusedName) {
 
     const network = [];
 
-    for (const accusedRow of accusedResult) {
+    for (const accRow of accusedResult) {
+        const accusedId = accRow.accused.ROWID;
+        const accused = accRow.accused;
 
-        const accusedId = accusedRow.accused.ROWID;
+        // Single query for all FIRs and associates
+        const networkQuery = `
+            SELECT 
+                f.fir_number,
+                f.status,
+                l.city,
+                l.district,
+                a2.full_name AS associate_name,
+                a2.ROWID AS associate_id,
+                a2.is_repeat_offender AS associate_repeat,
+                fa2.role_in_crime AS associate_role,
+                v.full_name AS victim_name
+            FROM fir_accused fa1
+            JOIN fir f ON f.ROWID = fa1.fir_rowid
+            LEFT JOIN location l ON l.ROWID = f.location_rowid
+            LEFT JOIN fir_accused fa2 ON fa2.fir_rowid = f.ROWID AND fa2.accused_rowid != '${accusedId}'
+            LEFT JOIN accused a2 ON a2.ROWID = fa2.accused_rowid
+            LEFT JOIN fir_victim fv ON fv.fir_rowid = f.ROWID
+            LEFT JOIN victim v ON v.ROWID = fv.victim_rowid
+            WHERE fa1.accused_rowid = '${accusedId}'
+            ORDER BY f.date_registered DESC
+        `;
 
-        const firs = await zcql.executeZCQLQuery(`
-            SELECT fir_rowid
-            FROM fir_accused
-            WHERE accused_rowid = '${accusedId}'
-        `);
+        const networkResult = await zcql.executeZCQLQuery(networkQuery);
 
-        const totalFirs = firs.length;
+        // Process results
+        const firMap = {};
+        const associateSet = new Set();
+        const victimSet = new Set();
 
-        for (const firRow of firs) {
+        for (const row of networkResult) {
+            const firNum = row.f?.fir_number || 'Unknown';
 
-            const firId = firRow.fir_accused.fir_rowid;
+            if (!firMap[firNum]) {
+                firMap[firNum] = {
+                    fir_number: firNum,
+                    status: row.f?.status || 'Unknown',
+                    location: row.l?.city || row.l?.district || 'Unknown',
+                    associates: [],
+                    victims: []
+                };
+            }
 
-            const associates = await zcql.executeZCQLQuery(`
-                SELECT
-                    a.full_name,
-                    a.ROWID,
-                    fa.role_in_crime
-                FROM fir_accused fa
-                JOIN accused a
-                ON a.ROWID = fa.accused_rowid
-                WHERE fa.fir_rowid = '${firId}'
-            `);
+            if (row.a2?.full_name && row.a2.full_name !== accused.full_name) {
+                const assocKey = row.a2.full_name;
+                if (!associateSet.has(assocKey)) {
+                    associateSet.add(assocKey);
+                    firMap[firNum].associates.push({
+                        name: row.a2.full_name,
+                        id: row.a2.ROWID,
+                        is_repeat_offender: row.a2.is_repeat_offender,
+                        role: row.fa2?.role_in_crime || 'Unknown'
+                    });
+                }
+            }
 
-            const firDetails = await zcql.executeZCQLQuery(`
-                SELECT
-                    f.fir_number,
-                    l.city
-                FROM fir f
-                JOIN location l
-                ON l.ROWID = f.location_rowid
-                WHERE f.ROWID = '${firId}'
-            `);
-
-            const victims = await zcql.executeZCQLQuery(`
-                SELECT
-                    v.full_name
-                FROM fir_victim fv
-                JOIN victim v
-                ON v.ROWID = fv.victim_rowid
-                WHERE fv.fir_rowid = '${firId}'
-            `);
-
-            const associateList = associates
-                .filter(x => x.a.ROWID !== accusedId)
-                .map(x => ({
-                    associate_name: x.a.full_name,
-                    associate_id: x.a.ROWID,
-                    role_in_crime: x.fa.role_in_crime
-                }));
-
-            network.push({
-                central_accused: accusedRow.accused.full_name,
-                central_id: accusedId,
-
-                repeat_offender:
-                    accusedRow.accused.is_repeat_offender ||
-                    totalFirs > 1,
-
-                total_firs: totalFirs,
-
-                risk_score: accusedRow.accused.risk_score,
-
-                organized_group:
-                    associateList.length >= 2,
-
-                associate_count:
-                    associateList.length,
-
-                fir_rowid: firId,
-
-                fir_number: firDetails.length
-                    ? firDetails[0].f.fir_number
-                    : null,
-
-                location: firDetails.length
-                    ? firDetails[0].l.city
-                    : null,
-
-                victims: victims.map(
-                    v => v.v.full_name
-                ),
-
-                associates: associateList
-            });
+            if (row.v?.full_name) {
+                const victimKey = row.v.full_name;
+                if (!victimSet.has(victimKey)) {
+                    victimSet.add(victimKey);
+                    firMap[firNum].victims.push(row.v.full_name);
+                }
+            }
         }
+
+        const firs = Object.values(firMap);
+        const totalFirs = firs.length;
+        const allAssociates = Array.from(associateSet);
+
+        network.push({
+            central_accused: accused.full_name,
+            central_id: accusedId,
+            is_repeat_offender: accused.is_repeat_offender || totalFirs > 1,
+            total_firs: totalFirs,
+            risk_score: accused.risk_score,
+            organized_group: allAssociates.length >= 2,
+            associate_count: allAssociates.length,
+            associates: allAssociates,
+            firs: firs
+        });
     }
 
     return network;
 }
 
-async function repeatOffenders(zcql) {
-
-    return await zcql.executeZCQLQuery(`
-        SELECT
-            full_name,
-            risk_score,
-            is_repeat_offender
-        FROM accused
-        WHERE is_repeat_offender = true
-    `);
-}
-
 async function criminalNetworkGraph(zcql, accusedName) {
+    const safeName = safeString(accusedName);
 
-    const accusedResult = await zcql.executeZCQLQuery(`
+    // Get accused
+    const accusedQuery = `
         SELECT ROWID, full_name
         FROM accused
-        WHERE full_name = '${accusedName}'
-    `);
+        WHERE LOWER(full_name) LIKE '%${safeName.toLowerCase()}%'
+    `;
+
+    const accusedResult = await zcql.executeZCQLQuery(accusedQuery);
 
     if (!accusedResult.length) {
-        return {
-            nodes: [],
-            edges: []
-        };
+        return { nodes: [], edges: [] };
     }
 
     const nodes = [];
     const edges = [];
-
     const addedNodes = new Set();
     const addedEdges = new Set();
 
-    for (const accusedRow of accusedResult) {
+    for (const accRow of accusedResult) {
+        const centralId = accRow.accused.ROWID;
+        const centralName = accRow.accused.full_name;
 
-        const centralId = accusedRow.accused.ROWID;
-        const centralName = accusedRow.accused.full_name;
-
+        // Add central node
         if (!addedNodes.has(centralId)) {
-            nodes.push({
-                id: centralId,
-                label: centralName,
-                type: "accused"
-            });
+            nodes.push({ id: centralId, label: centralName, type: 'accused' });
             addedNodes.add(centralId);
         }
 
-        const firs = await zcql.executeZCQLQuery(`
-            SELECT fir_rowid
-            FROM fir_accused
-            WHERE accused_rowid = '${centralId}'
-        `);
+        // Get all FIRs and connections in one query
+        const graphQuery = `
+            SELECT 
+                f.ROWID AS fir_id,
+                f.fir_number,
+                fa2.accused_rowid AS associate_id,
+                a2.full_name AS associate_name,
+                fa2.role_in_crime
+            FROM fir_accused fa1
+            JOIN fir f ON f.ROWID = fa1.fir_rowid
+            LEFT JOIN fir_accused fa2 ON fa2.fir_rowid = f.ROWID AND fa2.accused_rowid != '${centralId}'
+            LEFT JOIN accused a2 ON a2.ROWID = fa2.accused_rowid
+            WHERE fa1.accused_rowid = '${centralId}'
+        `;
 
-        for (const firRow of firs) {
+        const result = await zcql.executeZCQLQuery(graphQuery);
 
-            const firId = firRow.fir_accused.fir_rowid;
+        const firSet = new Set();
 
-            const firDetails = await zcql.executeZCQLQuery(`
-                SELECT fir_number
-                FROM fir
-                WHERE ROWID = '${firId}'
-            `);
+        for (const row of result) {
+            const firId = row.f?.ROWID;
+            const firNumber = row.f?.fir_number || firId;
 
-            const firNumber =
-                firDetails.length
-                    ? firDetails[0].fir.fir_number
-                    : firId;
-
-            if (!addedNodes.has(firId)) {
-                nodes.push({
-                    id: firId,
-                    label: firNumber,
-                    type: "fir"
-                });
-                addedNodes.add(firId);
-            }
-
-            const edgeKey = `${centralId}-${firId}`;
-
-            if (!addedEdges.has(edgeKey)) {
-                edges.push({
-                    source: centralId,
-                    target: firId,
-                    label: "INVOLVED_IN"
-                });
-
-                addedEdges.add(edgeKey);
-            }
-
-            const associates = await zcql.executeZCQLQuery(`
-                SELECT
-                    a.full_name,
-                    a.ROWID,
-                    fa.role_in_crime
-                FROM fir_accused fa
-                JOIN accused a
-                ON a.ROWID = fa.accused_rowid
-                WHERE fa.fir_rowid = '${firId}'
-            `);
-
-            for (const associate of associates) {
-
-                const associateId = associate.a.ROWID;
-
-                if (associateId === centralId) {
-                    continue;
+            if (firId && !firSet.has(firId)) {
+                firSet.add(firId);
+                if (!addedNodes.has(firId)) {
+                    nodes.push({ id: firId, label: firNumber, type: 'fir' });
+                    addedNodes.add(firId);
                 }
 
-                if (!addedNodes.has(associateId)) {
+                const edgeKey = `${centralId}-${firId}`;
+                if (!addedEdges.has(edgeKey)) {
+                    edges.push({ source: centralId, target: firId, label: 'INVOLVED_IN' });
+                    addedEdges.add(edgeKey);
+                }
+            }
 
+            // Add associates
+            if (row.fa2?.accused_rowid) {
+                const assocId = row.fa2.accused_rowid;
+                if (assocId !== centralId && !addedNodes.has(assocId)) {
                     nodes.push({
-                        id: associateId,
-                        label: associate.a.full_name,
-                        type: "accused"
+                        id: assocId,
+                        label: row.a2?.full_name || 'Unknown',
+                        type: 'accused'
                     });
-
-                    addedNodes.add(associateId);
+                    addedNodes.add(assocId);
                 }
 
-                const associateEdge =
-                    `${associateId}-${firId}`;
-
-                if (!addedEdges.has(associateEdge)) {
-
-                    edges.push({
-                        source: associateId,
-                        target: firId,
-                        label:
-                            associate.fa.role_in_crime
-                    });
-
-                    addedEdges.add(associateEdge);
+                if (firId) {
+                    const assocEdgeKey = `${assocId}-${firId}`;
+                    if (!addedEdges.has(assocEdgeKey)) {
+                        edges.push({
+                            source: assocId,
+                            target: firId,
+                            label: row.fa2?.role_in_crime || 'INVOLVED_IN'
+                        });
+                        addedEdges.add(assocEdgeKey);
+                    }
                 }
             }
         }
     }
 
-    return {
-        nodes,
-        edges
-    };
+    return { nodes, edges };
 }
 
-async function crimeHotspots(zcql) {
+async function repeatOffenders(zcql) {
+    const query = `
+        SELECT 
+            full_name, 
+            gender,
+            risk_score, 
+            is_repeat_offender,
+            (
+                SELECT COUNT(*) 
+                FROM fir_accused fa 
+                WHERE fa.accused_rowid = a.ROWID
+            ) AS total_cases
+        FROM accused a
+        WHERE is_repeat_offender = true
+        ORDER BY risk_score DESC
+    `;
 
-    const records = await zcql.executeZCQLQuery(`
-        SELECT
-            l.city,
-            f.fir_number
-        FROM fir f
-        JOIN location l
-        ON l.ROWID = f.location_rowid
-    `);
+    const result = await zcql.executeZCQLQuery(query);
 
-    const cityCounts = {};
+    return result.map(row => ({
+        full_name: row.a.full_name,
+        gender: row.a.gender,
+        risk_score: row.a.risk_score,
+        is_repeat_offender: row.a.is_repeat_offender,
+        total_cases: parseInt(row.a.total_cases || 0)
+    }));
+}
 
-    for (const row of records) {
+// ============================================================
+// RISK PROFILE (FIXED - using only existing columns)
+// ============================================================
 
-        const city = row.l.city;
+async function riskProfile(zcql, accusedName) {
+    const safeName = safeString(accusedName);
 
-        if (!cityCounts[city]) {
-            cityCounts[city] = 0;
-        }
+    // Get accused details (only existing columns)
+    const accusedQuery = `
+        SELECT 
+            ROWID,
+            full_name,
+            gender,
+            occupation,
+            address,
+            risk_score,
+            is_repeat_offender
+        FROM accused
+        WHERE LOWER(full_name) LIKE '%${safeName.toLowerCase()}%'
+    `;
 
-        cityCounts[city]++;
+    const accusedResult = await zcql.executeZCQLQuery(accusedQuery);
+
+    if (!accusedResult.length) {
+        return [{ error: 'Accused not found' }];
     }
 
-    const hotspots = Object.entries(cityCounts)
-        .map(([city, count]) => ({
-            city,
-            crime_count: count,
-            hotspot_level:
-                count >= 10
-                    ? 'HIGH'
-                    : count >= 5
-                    ? 'MEDIUM'
-                    : 'LOW'
-        }))
-        .sort((a, b) => b.crime_count - a.crime_count);
+    const accused = accusedResult[0].accused;
 
-    return hotspots;
+    // Get FIR details in one query
+    const firQuery = `
+        SELECT 
+            f.ROWID AS fir_id,
+            f.fir_number,
+            f.status,
+            f.date_registered,
+            l.city,
+            l.district,
+            a2.full_name AS associate_name,
+            a2.ROWID AS associate_id
+        FROM fir_accused fa1
+        JOIN fir f ON f.ROWID = fa1.fir_rowid
+        LEFT JOIN location l ON l.ROWID = f.location_rowid
+        LEFT JOIN fir_accused fa2 ON fa2.fir_rowid = f.ROWID AND fa2.accused_rowid != '${accused.ROWID}'
+        LEFT JOIN accused a2 ON a2.ROWID = fa2.accused_rowid
+        WHERE fa1.accused_rowid = '${accused.ROWID}'
+        ORDER BY f.date_registered DESC
+    `;
+
+    const firResult = await zcql.executeZCQLQuery(firQuery);
+
+    const totalFirs = firResult.length;
+    const associates = new Set();
+    const locations = new Set();
+    const firNumbers = [];
+
+    for (const row of firResult) {
+        if (row.f?.fir_number) {
+            firNumbers.push(row.f.fir_number);
+        }
+        if (row.a2?.full_name && row.a2.full_name !== accused.full_name) {
+            associates.add(row.a2.full_name);
+        }
+        if (row.l?.city) {
+            locations.add(row.l.city);
+        } else if (row.l?.district) {
+            locations.add(row.l.district);
+        }
+    }
+
+    const associateCount = associates.size;
+    const organizedGroup = associateCount >= 2;
+
+    let threatLevel = 'LOW';
+    if (Number(accused.risk_score) >= 80) {
+        threatLevel = 'HIGH';
+    } else if (Number(accused.risk_score) >= 60) {
+        threatLevel = 'MEDIUM';
+    }
+
+    return [{
+        name: accused.full_name,
+        gender: accused.gender,
+        occupation: accused.occupation,
+        address: accused.address,
+        risk_score: accused.risk_score,
+        repeat_offender: accused.is_repeat_offender,
+        total_firs: totalFirs,
+        fir_numbers: firNumbers,
+        known_associates: Array.from(associates),
+        associate_count: associateCount,
+        organized_group_member: organizedGroup,
+        hotspot_locations: Array.from(locations),
+        threat_level: threatLevel
+    }];
 }
 
-async function crimeTypeTrends(zcql) {
+// ============================================================
+// LOCATION & TREND ANALYSIS
+// ============================================================
 
-    const records = await zcql.executeZCQLQuery(`
-        SELECT
+async function crimeHotspots(zcql, params = {}) {
+    let query = `
+        SELECT 
+            l.city,
+            l.district,
+            COUNT(f.ROWID) AS crime_count
+        FROM fir f
+        JOIN location l ON l.ROWID = f.location_rowid
+    `;
+
+    const conditions = [];
+
+    if (params.location) {
+        conditions.push(`
+            LOWER(l.city) LIKE '%${safeString(params.location.toLowerCase())}%'
+            OR LOWER(l.district) LIKE '%${safeString(params.location.toLowerCase())}%'
+        `);
+    }
+
+    if (params.crime_type) {
+        conditions.push(`
+            f.crime_type_rowid IN (
+                SELECT ROWID FROM crime_type_master 
+                WHERE LOWER(crime_name) LIKE '%${safeString(params.crime_type.toLowerCase())}%'
+            )
+        `);
+    }
+
+    if (params.from_date) {
+        conditions.push(`f.date_registered >= '${safeString(params.from_date)}'`);
+    }
+
+    if (params.to_date) {
+        conditions.push(`f.date_registered <= '${safeString(params.to_date)}'`);
+    }
+
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += `
+        GROUP BY l.city, l.district
+        ORDER BY crime_count DESC
+    `;
+
+    const result = await zcql.executeZCQLQuery(query);
+
+    return result.map(row => {
+        const count = parseInt(row.l?.crime_count || 0);
+        return {
+            city: row.l.city,
+            district: row.l.district,
+            crime_count: count,
+            hotspot_level: count >= 10 ? 'HIGH' : count >= 5 ? 'MEDIUM' : 'LOW'
+        };
+    });
+}
+
+async function crimeTypeTrends(zcql, params = {}) {
+    let query = `
+        SELECT 
             c.crime_name,
             c.parent_category,
-            f.fir_number
+            COUNT(f.ROWID) AS crime_count
         FROM fir f
-        JOIN crime_type_master c
-        ON c.ROWID = f.crime_type_rowid
-    `);
+        JOIN crime_type_master c ON c.ROWID = f.crime_type_rowid
+    `;
 
-    const crimeCounts = {};
+    const conditions = [];
 
-    for (const row of records) {
-
-        const crime = row.c.crime_name;
-
-        if (!crimeCounts[crime]) {
-
-            crimeCounts[crime] = {
-                crime_type: crime,
-                category: row.c.parent_category,
-                count: 0
-            };
-        }
-
-        crimeCounts[crime].count++;
+    if (params.from_date) {
+        conditions.push(`f.date_registered >= '${safeString(params.from_date)}'`);
     }
 
-    return Object.values(crimeCounts)
-        .sort((a, b) => b.count - a.count);
+    if (params.to_date) {
+        conditions.push(`f.date_registered <= '${safeString(params.to_date)}'`);
+    }
+
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += `
+        GROUP BY c.crime_name, c.parent_category
+        ORDER BY crime_count DESC
+    `;
+
+    const result = await zcql.executeZCQLQuery(query);
+
+    return result.map(row => ({
+        crime_type: row.c.crime_name,
+        category: row.c.parent_category,
+        count: parseInt(row.c?.crime_count || 0)
+    }));
 }
 
-async function monthlyCrimeTrends(zcql) {
-
-    const records = await zcql.executeZCQLQuery(`
-        SELECT
-            date_registered
+async function monthlyCrimeTrends(zcql, params = {}) {
+    let query = `
+        SELECT date_registered
         FROM fir
-    `);
+    `;
+
+    const conditions = [];
+
+    if (params.from_date) {
+        conditions.push(`date_registered >= '${safeString(params.from_date)}'`);
+    }
+
+    if (params.to_date) {
+        conditions.push(`date_registered <= '${safeString(params.to_date)}'`);
+    }
+
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    const result = await zcql.executeZCQLQuery(query);
 
     const monthCounts = {};
 
-    for (const row of records) {
-
+    for (const row of result) {
         const date = row.fir.date_registered;
-
-        const month = date.substring(0, 7);
-
-        if (!monthCounts[month]) {
-            monthCounts[month] = 0;
+        if (date) {
+            const month = date.substring(0, 7);
+            monthCounts[month] = (monthCounts[month] || 0) + 1;
         }
-
-        monthCounts[month]++;
     }
 
-    const result = Object.entries(monthCounts)
-        .map(([month, count]) => ({
-            month,
-            crime_count: count
-        }))
-        .sort((a, b) =>
-            a.month.localeCompare(b.month)
-        );
+    const trends = Object.entries(monthCounts)
+        .map(([month, count]) => ({ month, crime_count: count }))
+        .sort((a, b) => a.month.localeCompare(b.month));
 
-    for (let i = 0; i < result.length; i++) {
-
+    // Calculate trends
+    for (let i = 0; i < trends.length; i++) {
         if (i === 0) {
-            result[i].trend = "BASELINE";
-            continue;
+            trends[i].trend = 'BASELINE';
+            trends[i].change = '0';
+        } else {
+            const diff = trends[i].crime_count - trends[i - 1].crime_count;
+            trends[i].trend = diff > 0 ? 'UP' : diff < 0 ? 'DOWN' : 'STABLE';
+            trends[i].change = diff > 0 ? `+${diff}` : `${diff}`;
         }
-
-        if (
-            result[i].crime_count >
-            result[i - 1].crime_count
-        ) {
-            result[i].trend = "UP";
-        }
-        else if (
-            result[i].crime_count <
-            result[i - 1].crime_count
-        ) {
-            result[i].trend = "DOWN";
-        }
-        else {
-            result[i].trend = "STABLE";
-        }
-
-        const difference =
-            result[i].crime_count -
-            result[i - 1].crime_count;
-
-        result[i].change =
-            difference > 0
-                ? `+${difference}`
-                : `${difference}`;
     }
 
-    return result;
+    return trends;
 }
 
-async function districtCrimeAnalysis(zcql) {
-
-    const records = await zcql.executeZCQLQuery(`
-        SELECT
+async function districtCrimeAnalysis(zcql, params = {}) {
+    let query = `
+        SELECT 
             l.district,
-            f.fir_number
+            COUNT(f.ROWID) AS crime_count
         FROM fir f
-        JOIN location l
-        ON l.ROWID = f.location_rowid
-    `);
+        JOIN location l ON l.ROWID = f.location_rowid
+    `;
 
-    const districtCounts = {};
+    const conditions = [];
 
-    for (const row of records) {
-
-        const district = row.l.district;
-
-        if (!districtCounts[district]) {
-            districtCounts[district] = 0;
-        }
-
-        districtCounts[district]++;
+    if (params.from_date) {
+        conditions.push(`f.date_registered >= '${safeString(params.from_date)}'`);
     }
 
-    return Object.entries(districtCounts)
-        .map(([district, count]) => ({
-            district,
-            crime_count: count
-        }))
-        .sort((a, b) => b.crime_count - a.crime_count);
+    if (params.to_date) {
+        conditions.push(`f.date_registered <= '${safeString(params.to_date)}'`);
+    }
+
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += `
+        GROUP BY l.district
+        ORDER BY crime_count DESC
+    `;
+
+    const result = await zcql.executeZCQLQuery(query);
+
+    return result.map(row => ({
+        district: row.l.district,
+        crime_count: parseInt(row.l?.crime_count || 0)
+    }));
 }
 
 async function emergingCrimeClusters(zcql) {
-
-    const records = await zcql.executeZCQLQuery(`
-        SELECT
+    const query = `
+        SELECT 
             c.crime_name,
             f.date_registered
         FROM fir f
-        JOIN crime_type_master c
-        ON c.ROWID = f.crime_type_rowid
-    `);
+        JOIN crime_type_master c ON c.ROWID = f.crime_type_rowid
+        ORDER BY f.date_registered
+    `;
+
+    const result = await zcql.executeZCQLQuery(query);
 
     const crimeMonthlyData = {};
 
-    for (const row of records) {
-
+    for (const row of result) {
         const crimeType = row.c.crime_name;
+        const date = row.f.date_registered;
 
-        const month =
-            row.f.date_registered.substring(0, 7);
-
-        if (!crimeMonthlyData[crimeType]) {
-            crimeMonthlyData[crimeType] = {};
+        if (date) {
+            const month = date.substring(0, 7);
+            if (!crimeMonthlyData[crimeType]) {
+                crimeMonthlyData[crimeType] = {};
+            }
+            crimeMonthlyData[crimeType][month] = (crimeMonthlyData[crimeType][month] || 0) + 1;
         }
-
-        if (!crimeMonthlyData[crimeType][month]) {
-            crimeMonthlyData[crimeType][month] = 0;
-        }
-
-        crimeMonthlyData[crimeType][month]++;
     }
 
     const clusters = [];
 
     for (const crimeType in crimeMonthlyData) {
+        const months = Object.keys(crimeMonthlyData[crimeType]).sort();
 
-        const months =
-            Object.keys(
-                crimeMonthlyData[crimeType]
-            ).sort();
+        if (months.length < 2) continue;
 
-        if (months.length < 2) {
-            continue;
-        }
+        const firstMonth = months[0];
+        const lastMonth = months[months.length - 1];
+        const firstCount = crimeMonthlyData[crimeType][firstMonth];
+        const lastCount = crimeMonthlyData[crimeType][lastMonth];
 
-        const firstMonth =
-            crimeMonthlyData[crimeType][months[0]];
+        let trend = 'STABLE';
+        if (lastCount > firstCount) trend = 'RISING';
+        else if (lastCount < firstCount) trend = 'DECLINING';
 
-        const lastMonth =
-            crimeMonthlyData[crimeType][
-                months[months.length - 1]
-            ];
-
-        let trend = "STABLE";
-
-        if (lastMonth > firstMonth) {
-            trend = "RISING";
-        }
-        else if (lastMonth < firstMonth) {
-            trend = "DECLINING";
-        }
-
-        const growthPercent =
-            firstMonth === 0
-                ? 100
-                : Number(
-                    (
-                        ((lastMonth - firstMonth) /
-                            firstMonth) *
-                        100
-                    ).toFixed(2)
-                );
+        const growthPercent = firstCount === 0 ? 100 :
+            Number(((lastCount - firstCount) / firstCount * 100).toFixed(2));
 
         clusters.push({
             crime_type: crimeType,
-            first_month: months[0],
-            first_month_count: firstMonth,
-            latest_month:
-                months[months.length - 1],
-            latest_month_count: lastMonth,
+            first_month: firstMonth,
+            first_month_count: firstCount,
+            latest_month: lastMonth,
+            latest_month_count: lastCount,
             trend,
             growth_percent: growthPercent
         });
     }
 
-    return clusters.sort(
-        (a, b) =>
-            b.growth_percent - a.growth_percent
-    );
+    return clusters.sort((a, b) => b.growth_percent - a.growth_percent);
 }
 
+// ============================================================
+// DEMOGRAPHIC ANALYSIS (FIXED - only existing columns)
+// ============================================================
+
 async function genderCrimeAnalysis(zcql) {
-
-    const records = await zcql.executeZCQLQuery(`
-        SELECT gender
+    const query = `
+        SELECT gender, COUNT(ROWID) AS count
         FROM accused
-    `);
+        GROUP BY gender
+        ORDER BY count DESC
+    `;
 
-    const counts = {};
+    const result = await zcql.executeZCQLQuery(query);
 
-    for (const row of records) {
-
-        const gender = row.accused.gender;
-
-        counts[gender] = (counts[gender] || 0) + 1;
-    }
-
-    return Object.entries(counts).map(([gender, count]) => ({
-        gender,
-        count
+    return result.map(row => ({
+        gender: row.accused.gender || 'Unknown',
+        count: parseInt(row.accused.count || 0)
     }));
 }
 
-async function educationCrimeAnalysis(zcql) {
-
-    const records = await zcql.executeZCQLQuery(`
-        SELECT education_level
-        FROM accused
-    `);
-
-    const counts = {};
-
-    for (const row of records) {
-
-        const education = row.accused.education_level;
-
-        counts[education] = (counts[education] || 0) + 1;
-    }
-
-    return Object.entries(counts)
-        .map(([education_level, count]) => ({
-            education_level,
-            count
-        }))
-        .sort((a, b) => b.count - a.count);
-}
-
-async function migrationCrimeAnalysis(zcql) {
-
-    const records = await zcql.executeZCQLQuery(`
-        SELECT migration_status
-        FROM accused
-    `);
-
-    const counts = {};
-
-    for (const row of records) {
-
-        const migration = row.accused.migration_status;
-
-        counts[migration] = (counts[migration] || 0) + 1;
-    }
-
-    return Object.entries(counts)
-        .map(([migration_status, count]) => ({
-            migration_status,
-            count
-        }))
-        .sort((a, b) => b.count - a.count);
-}
-
-async function economicStressAnalysis(zcql) {
-
-    const records = await zcql.executeZCQLQuery(`
-        SELECT income_bracket
-        FROM accused
-    `);
-
-    const counts = {};
-
-    for (const row of records) {
-
-        const income = row.accused.income_bracket;
-
-        counts[income] = (counts[income] || 0) + 1;
-    }
-
-    return Object.entries(counts)
-        .map(([income_bracket, count]) => ({
-            income_bracket,
-            count
-        }))
-        .sort((a, b) => b.count - a.count);
-}
-
 async function demographicDashboard(zcql) {
-
-    const records = await zcql.executeZCQLQuery(`
-        SELECT
-            education_level,
-            income_bracket,
-            migration_status,
-            gang_affiliation,
+    const query = `
+        SELECT 
+            gender,
+            occupation,
             risk_score,
             is_repeat_offender
         FROM accused
-    `);
+    `;
 
-    const total = records.length;
+    const result = await zcql.executeZCQLQuery(query);
 
+    const total = result.length;
     let repeatOffenders = 0;
-    let gangMembers = 0;
     let totalRiskScore = 0;
+    const genderCounts = {};
+    const occupationCounts = {};
 
-    const educationCounts = {};
-    const incomeCounts = {};
-    const migrationCounts = {};
-
-    for (const row of records) {
-
+    for (const row of result) {
         const accused = row.accused;
 
         if (accused.is_repeat_offender) {
             repeatOffenders++;
         }
 
-        if (
-            accused.gang_affiliation &&
-            accused.gang_affiliation.toLowerCase() === 'yes'
-        ) {
-            gangMembers++;
-        }
-
         totalRiskScore += Number(accused.risk_score || 0);
 
-        educationCounts[accused.education_level] =
-            (educationCounts[accused.education_level] || 0) + 1;
+        const gender = accused.gender || 'Unknown';
+        genderCounts[gender] = (genderCounts[gender] || 0) + 1;
 
-        incomeCounts[accused.income_bracket] =
-            (incomeCounts[accused.income_bracket] || 0) + 1;
-
-        migrationCounts[accused.migration_status] =
-            (migrationCounts[accused.migration_status] || 0) + 1;
+        const occupation = accused.occupation || 'Unknown';
+        occupationCounts[occupation] = (occupationCounts[occupation] || 0) + 1;
     }
 
-    const topEducation =
-        Object.entries(educationCounts)
-            .sort((a, b) => b[1] - a[1])[0]?.[0];
+    const topGender = Object.entries(genderCounts)
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || 'Unknown';
 
-    const topIncome =
-        Object.entries(incomeCounts)
-            .sort((a, b) => b[1] - a[1])[0]?.[0];
-
-    const topMigration =
-        Object.entries(migrationCounts)
-            .sort((a, b) => b[1] - a[1])[0]?.[0];
+    const topOccupation = Object.entries(occupationCounts)
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || 'Unknown';
 
     return [{
         total_accused: total,
         repeat_offenders: repeatOffenders,
-        gang_affiliated: gangMembers,
-        average_risk_score:
-            Number((totalRiskScore / total).toFixed(2)),
-        top_education: topEducation,
-        top_income_group: topIncome,
-        top_migration_group: topMigration
+        average_risk_score: total === 0 ? 0 : Number((totalRiskScore / total).toFixed(2)),
+        most_common_gender: topGender,
+        most_common_occupation: topOccupation
     }];
 }
 
 async function repeatOffenderDemographics(zcql) {
-
-    const records = await zcql.executeZCQLQuery(`
-        SELECT
+    const query = `
+        SELECT 
             gender,
             occupation,
-            education_level,
-            income_bracket,
-            migration_status,
             risk_score,
             is_repeat_offender
         FROM accused
         WHERE is_repeat_offender = true
-    `);
+    `;
 
+    const result = await zcql.executeZCQLQuery(query);
+
+    const total = result.length;
     let totalRiskScore = 0;
-
     const genderCounts = {};
     const occupationCounts = {};
-    const educationCounts = {};
-    const incomeCounts = {};
-    const migrationCounts = {};
 
-    for (const row of records) {
-
+    for (const row of result) {
         const accused = row.accused;
+        totalRiskScore += Number(accused.risk_score || 0);
 
-        totalRiskScore += Number(
-            accused.risk_score || 0
-        );
+        const gender = accused.gender || 'Unknown';
+        genderCounts[gender] = (genderCounts[gender] || 0) + 1;
 
-        genderCounts[accused.gender] =
-            (genderCounts[accused.gender] || 0) + 1;
-
-        occupationCounts[accused.occupation] =
-            (occupationCounts[accused.occupation] || 0) + 1;
-
-        educationCounts[accused.education_level] =
-            (educationCounts[accused.education_level] || 0) + 1;
-
-        incomeCounts[accused.income_bracket] =
-            (incomeCounts[accused.income_bracket] || 0) + 1;
-
-        migrationCounts[accused.migration_status] =
-            (migrationCounts[accused.migration_status] || 0) + 1;
+        const occupation = accused.occupation || 'Unknown';
+        occupationCounts[occupation] = (occupationCounts[occupation] || 0) + 1;
     }
 
-    const topGender =
-        Object.entries(genderCounts)
-            .sort((a, b) => b[1] - a[1])[0]?.[0];
+    const topGender = Object.entries(genderCounts)
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || 'Unknown';
 
-    const topOccupation =
-        Object.entries(occupationCounts)
-            .sort((a, b) => b[1] - a[1])[0]?.[0];
-
-    const topEducation =
-        Object.entries(educationCounts)
-            .sort((a, b) => b[1] - a[1])[0]?.[0];
-
-    const topIncome =
-        Object.entries(incomeCounts)
-            .sort((a, b) => b[1] - a[1])[0]?.[0];
-
-    const topMigration =
-        Object.entries(migrationCounts)
-            .sort((a, b) => b[1] - a[1])[0]?.[0];
+    const topOccupation = Object.entries(occupationCounts)
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || 'Unknown';
 
     return [{
-        repeat_offender_count: records.length,
-        average_risk_score:
-            Number(
-                (
-                    totalRiskScore /
-                    records.length
-                ).toFixed(2)
-            ),
+        repeat_offender_count: total,
+        average_risk_score: total === 0 ? 0 : Number((totalRiskScore / total).toFixed(2)),
         most_common_gender: topGender,
-        most_common_occupation: topOccupation,
-        most_common_education: topEducation,
-        most_common_income_group: topIncome,
-        most_common_migration_group: topMigration
+        most_common_occupation: topOccupation
     }];
 }
 
-async function riskProfile(zcql, accusedName) {
+// ============================================================
+// SOCIAL RISK ANALYSIS (FIXED - using only existing columns)
+// ============================================================
 
-    const accusedRecords = await zcql.executeZCQLQuery(`
-        SELECT
-            ROWID,
-            full_name,
-            gender,
-            occupation,
-            education_level,
-            employment_status,
-            income_bracket,
-            migration_status,
-            marital_status,
-            substance_abuse_history,
-            gang_affiliation,
-            financial_distress_score,
+async function socialRiskAnalysis(zcql) {
+    const query = `
+        SELECT 
+            address,
             risk_score,
             is_repeat_offender
         FROM accused
-        WHERE full_name = '${accusedName}'
-    `);
+    `;
 
-    if (!accusedRecords.length) {
-
-        return [{
-            error: 'Accused not found'
-        }];
-    }
-
-    const accused = accusedRecords[0].accused;
-
-    const firRecords = await zcql.executeZCQLQuery(`
-        SELECT
-            fir_rowid
-        FROM fir_accused
-        WHERE accused_rowid='${accused.ROWID}'
-    `);
-
-    const totalFirs = firRecords.length;
-
-    const associateMap = {};
-    const hotspotLocations = new Set();
-
-    for (const fir of firRecords) {
-
-        const firRowId =
-            fir.fir_accused.fir_rowid;
-
-        const associates =
-            await zcql.executeZCQLQuery(`
-                SELECT
-                    a.full_name,
-                    a.ROWID
-                FROM accused a
-                JOIN fir_accused fa
-                ON a.ROWID = fa.accused_rowid
-                WHERE fa.fir_rowid='${firRowId}'
-            `);
-
-        for (const associate of associates) {
-
-            const associateId =
-                associate.a.ROWID;
-
-            if (
-                associateId !== accused.ROWID
-            ) {
-
-                associateMap[
-                    associateId
-                ] =
-                    associate.a.full_name;
-            }
-        }
-
-        const locationRecords =
-            await zcql.executeZCQLQuery(`
-                SELECT
-                    l.city
-                FROM fir f
-                JOIN location l
-                ON l.ROWID = f.location_rowid
-                WHERE f.ROWID='${firRowId}'
-            `);
-
-        if (locationRecords.length) {
-
-            hotspotLocations.add(
-                locationRecords[0].l.city
-            );
-        }
-    }
-
-    const knownAssociates =
-        Object.values(associateMap);
-
-    const associateCount =
-        knownAssociates.length;
-
-    const organizedGroupMember =
-        associateCount >= 2;
-
-    let threatLevel = 'LOW';
-
-    if (
-        Number(accused.risk_score) >= 80 ||
-        accused.gang_affiliation === 'Yes'
-    ) {
-
-        threatLevel = 'HIGH';
-    }
-    else if (
-        Number(accused.risk_score) >= 60
-    ) {
-
-        threatLevel = 'MEDIUM';
-    }
-
-    return [{
-
-        name:
-            accused.full_name,
-
-        gender:
-            accused.gender,
-
-        occupation:
-            accused.occupation,
-
-        education_level:
-            accused.education_level,
-
-        employment_status:
-            accused.employment_status,
-
-        income_bracket:
-            accused.income_bracket,
-
-        migration_status:
-            accused.migration_status,
-
-        marital_status:
-            accused.marital_status,
-
-        substance_abuse_history:
-            accused.substance_abuse_history,
-
-        gang_affiliation:
-            accused.gang_affiliation,
-
-        financial_distress_score:
-            accused.financial_distress_score,
-
-        risk_score:
-            accused.risk_score,
-
-        repeat_offender:
-            accused.is_repeat_offender,
-
-        total_firs:
-            totalFirs,
-
-        criminal_history_count:
-            totalFirs,
-
-        known_associates:
-            knownAssociates,
-
-        hotspot_locations:
-            Array.from(
-                hotspotLocations
-            ),
-
-        associate_count:
-            associateCount,
-
-        organized_group_member:
-            organizedGroupMember,
-
-        threat_level:
-            threatLevel
-    }];
-}
-
-async function socialRiskAnalysis(zcql) {
-
-    const records = await zcql.executeZCQLQuery(`
-        SELECT
-            address,
-            risk_score,
-            is_repeat_offender,
-            gang_affiliation,
-            financial_distress_score
-        FROM accused
-    `);
+    const result = await zcql.executeZCQLQuery(query);
 
     const cityStats = {};
 
-    for (const row of records) {
-
+    for (const row of result) {
         const accused = row.accused;
-
-        const city =
-            accused.address || 'Unknown';
+        const city = accused.address || 'Unknown';
 
         if (!cityStats[city]) {
-
             cityStats[city] = {
                 city,
                 total_accused: 0,
                 repeat_offenders: 0,
-                gang_members: 0,
-                total_risk_score: 0,
-                total_financial_distress: 0
+                total_risk_score: 0
             };
         }
 
         cityStats[city].total_accused++;
-
-        if (
-            accused.is_repeat_offender
-        ) {
-            cityStats[city]
-                .repeat_offenders++;
+        if (accused.is_repeat_offender) {
+            cityStats[city].repeat_offenders++;
         }
-
-        if (
-            accused.gang_affiliation ===
-            'Yes'
-        ) {
-            cityStats[city]
-                .gang_members++;
-        }
-
-        cityStats[city]
-            .total_risk_score +=
-            Number(
-                accused.risk_score || 0
-            );
-
-        cityStats[city]
-            .total_financial_distress +=
-            Number(
-                accused
-                .financial_distress_score || 0
-            );
+        cityStats[city].total_risk_score += Number(accused.risk_score || 0);
     }
 
-    const result = [];
-
-    for (const city in cityStats) {
-
-        const data = cityStats[city];
-
-        result.push({
-
-            city:
-                data.city,
-
-            total_accused:
-                data.total_accused,
-
-            repeat_offenders:
-                data.repeat_offenders,
-
-            gang_members:
-                data.gang_members,
-
-            average_risk_score:
-                Number(
-                    (
-                        data.total_risk_score /
-                        data.total_accused
-                    ).toFixed(2)
-                ),
-
-            average_financial_distress:
-                Number(
-                    (
-                        data
-                        .total_financial_distress /
-                        data.total_accused
-                    ).toFixed(2)
-                )
-        });
-    }
-
-    return result.sort(
-        (a, b) =>
-            b.average_risk_score -
-            a.average_risk_score
-    );
+    return Object.values(cityStats)
+        .map(data => ({
+            city: data.city,
+            total_accused: data.total_accused,
+            repeat_offenders: data.repeat_offenders,
+            average_risk_score: data.total_accused === 0 ? 0 :
+                Number((data.total_risk_score / data.total_accused).toFixed(2))
+        }))
+        .sort((a, b) => b.average_risk_score - a.average_risk_score);
 }
