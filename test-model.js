@@ -6,7 +6,7 @@ const https = require('https');
 // ============================================================
 // ⚠️ REPLACE WITH YOUR ACTUAL TOKEN
 // ============================================================
-const ACCESS_TOKEN = '1000.9fac282788e0ec86b698e366ed7edc5c.8a54ade792ea47fab46b871fd74e66ec';  // ← PUT YOUR TOKEN HERE
+const ACCESS_TOKEN = '1000.adfbaddb280fcab1f573f16d59bec769.4df2a86b168c1d1a366ecbce34270d04'  // ← PUT YOUR TOKEN HERE
 // ============================================================
 // Test Configuration
 // ============================================================
