@@ -1,4 +1,3 @@
-// D:\Project\KSP\KSP_catalyst\functions\ai-response\index.js
 'use strict';
 
 const fs = require('fs');

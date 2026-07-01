@@ -1,4 +1,3 @@
-// D:\Project\KSP\KSP_catalyst\functions\chat-intent\index.js
 'use strict';
 
 module.exports = async (req, res) => {

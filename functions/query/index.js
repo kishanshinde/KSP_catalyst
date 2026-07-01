@@ -1,4 +1,3 @@
-// D:\Project\H2S\Intelligent_Conversational_AI_for_KSP\functions\query\index.js
 'use strict';
 
 const catalyst = require('zcatalyst-sdk-node');

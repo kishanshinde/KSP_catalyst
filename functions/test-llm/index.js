@@ -1,4 +1,3 @@
-// D:\Project\H2S\Intelligent_Conversational_AI_for_KSP\functions\test-llm\index.js
 'use strict';
 
 const fs = require('fs');
