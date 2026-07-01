@@ -10,7 +10,8 @@
       "saveConversation",
       "generatePDF",
       "query",
-      "convokraftHandler"
+      "convokraftHandler",
+      "ai-response"
     ],
     "ignore": [],
     "source": "functions"
