@@ -3,5 +3,8 @@
   "scripts": {
     "serve": "catalyst serve --no-open --except functions:convokraftHandler",
     "serve:open": "catalyst serve --except functions:convokraftHandler"
+  },
+  "dependencies": {
+    "zcatalyst-sdk-node": "^3.4.0"
   }
 }

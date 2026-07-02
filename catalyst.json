@@ -10,7 +10,12 @@
       "saveConversation",
       "generatePDF",
       "query",
-      "convokraftHandler"
+      "convokraftHandler",
+      "getCurrentUser",
+      "ai-response",
+      "renameConversation",
+      "deleteConversation",
+      "listConversations"
     ],
     "ignore": [],
     "source": "functions"
