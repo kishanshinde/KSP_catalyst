@@ -15,7 +15,9 @@
       "ai-response",
       "renameConversation",
       "deleteConversation",
-      "listConversations"
+      "listConversations",
+      "CrimeTrends",
+      "RecentCases"
     ],
     "ignore": [],
     "source": "functions"
