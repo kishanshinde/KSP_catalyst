@@ -1,12 +1,58 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { createPortal } from 'react-dom'
 
 export default function Dropdown({ trigger, items, align = 'right', className = '' }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef(null)
+  const triggerRef = useRef(null)
+  const menuRef = useRef(null)
+  const [position, setPosition] = useState({ top: 0, left: 0 })
+  const [flipUp, setFlipUp] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const animOrigin = flipUp ? { y: 4 } : { y: -4 }
+
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    const menuWidth = 260
+    const menuHeight = menuRef.current?.offsetHeight || 200
+
+    let top = rect.bottom + 8
+    let left = align === 'right' ? rect.right - menuWidth : rect.left
+
+    if (top + menuHeight > window.innerHeight - 16) {
+      top = rect.top - menuHeight - 8
+      setFlipUp(true)
+    } else {
+      setFlipUp(false)
+    }
+
+    if (left < 8) left = 8
+    if (left + menuWidth > window.innerWidth - 8) {
+      left = align === 'right' ? Math.max(8, rect.left) : Math.max(8, rect.right - menuWidth)
+    }
+
+    setPosition({ top, left })
+  }, [align])
+
+  useEffect(() => {
+    if (open) {
+      updatePosition()
+      requestAnimationFrame(updatePosition)
+      window.addEventListener('scroll', updatePosition, true)
+      window.addEventListener('resize', updatePosition)
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true)
+        window.removeEventListener('resize', updatePosition)
+      }
+    }
+  }, [open, updatePosition])
 
   const handleClickOutside = useCallback((e) => {
-    if (ref.current && !ref.current.contains(e.target)) {
+    if (
+      menuRef.current && !menuRef.current.contains(e.target) &&
+      triggerRef.current && !triggerRef.current.contains(e.target)
+    ) {
       setOpen(false)
     }
   }, [])
@@ -18,38 +64,113 @@ export default function Dropdown({ trigger, items, align = 'right', className = 
     }
   }, [open, handleClickOutside])
 
+  const handleKeyDown = useCallback((e) => {
+    if (!open) return
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setActiveIndex(prev => (prev + 1) % items.length)
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setActiveIndex(prev => (prev - 1 + items.length) % items.length)
+        break
+      case 'Enter':
+      case ' ':
+        e.preventDefault()
+        if (activeIndex >= 0 && activeIndex < items.length) {
+          items[activeIndex].onClick?.()
+          setOpen(false)
+        }
+        break
+      case 'Escape':
+        e.preventDefault()
+        setOpen(false)
+        break
+      case 'Tab':
+        setOpen(false)
+        break
+    }
+  }, [open, items, activeIndex])
+
+  const menu = (
+    <AnimatePresence>
+      {open && items.length > 0 && (
+        <motion.div
+          ref={menuRef}
+          initial={{ opacity: 0, scale: 0.96, ...animOrigin }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, ...animOrigin }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          style={{
+            position: 'fixed',
+            top: position.top,
+            left: position.left,
+            zIndex: 99999,
+          }}
+          className="w-[260px] rounded-xl border backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border-black/10 dark:border-white/10 shadow-2xl py-2"
+          role="menu"
+          onKeyDown={handleKeyDown}
+        >
+          {items.map((item, i) => (
+            <button
+              key={i}
+              onClick={async () => { setOpen(false); await item.onClick?.() }}
+              className={`w-full flex items-center gap-4 px-5 py-3 text-sm transition-all duration-150 text-left ${
+                item.destructive
+                  ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40'
+                  : 'text-on-surface dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+              } ${activeIndex === i ? 'bg-slate-100 dark:bg-slate-800' : ''}`}
+              role="menuitem"
+              tabIndex={-1}
+              onMouseEnter={() => setActiveIndex(i)}
+            >
+              {item.icon && (
+                <span className="shrink-0 text-on-surface-variant dark:text-slate-400">
+                  {item.icon}
+                </span>
+              )}
+              {item.title || item.label ? (
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-sm font-semibold whitespace-normal">
+                    {item.title || item.label}
+                  </span>
+                  {item.description && (
+                    <span className="text-xs leading-5 opacity-80 whitespace-normal">
+                      {item.description}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                item.label
+              )}
+            </button>
+          ))}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+
   return (
-    <div ref={ref} className={`relative inline-block ${className}`}>
-      <div onClick={() => setOpen((prev) => !prev)} role="button" tabIndex={0} aria-haspopup="true" aria-expanded={open}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setOpen((prev) => !prev) }}
-      >
-        {trigger}
+    <>
+      <div ref={triggerRef} className={`inline-block ${className}`}>
+        <div
+          onClick={(e) => { e.stopPropagation(); setOpen(prev => !prev) }}
+          role="button"
+          tabIndex={0}
+          aria-haspopup="true"
+          aria-expanded={open}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              setOpen(prev => !prev)
+            }
+          }}
+        >
+          {trigger}
+        </div>
       </div>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -4 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -4 }}
-            transition={{ duration: 0.15 }}
-            className={`absolute top-full mt-2 z-50 min-w-[220px] glass-strong rounded-xl py-1 shadow-lg ${align === 'right' ? 'right-0' : 'left-0'}`}
-            role="menu"
-          >
-            {items.map((item, i) => (
-              <button
-                key={i}
-                onClick={() => { item.onClick?.(); setOpen(false) }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-on-surface dark:text-slate-200 hover:bg-surface-container dark:hover:bg-slate-800 transition-colors duration-150"
-                role="menuitem"
-                tabIndex={-1}
-              >
-                {item.icon && <span className="text-on-surface-variant dark:text-slate-400 shrink-0">{item.icon}</span>}
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+      {createPortal(menu, document.body)}
+    </>
   )
 }

@@ -10,14 +10,13 @@
       "saveConversation",
       "generatePDF",
       "query",
-      "convokraftHandler",
+      "getCurrentUser",
       "ai-response",
-      "CrimeTrends",
-      "RecentCases",
       "renameConversation",
       "deleteConversation",
       "listConversations",
-      "getCurrentUser"
+      "CrimeTrends",
+      "RecentCases"
     ],
     "ignore": [],
     "source": "functions"

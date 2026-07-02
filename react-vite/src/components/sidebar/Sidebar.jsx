@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MoreVertical, FileText, Pencil, Trash2 } from 'lucide-react'
 import { useChat } from '../../context/ChatContext'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useSidebar } from '../../contexts/SidebarContext'
@@ -8,14 +9,22 @@ import SidebarToggle from './SidebarToggle'
 import SidebarHeader from './SidebarHeader'
 import SidebarNavigation from './SidebarNavigation'
 import SidebarFooter from './SidebarFooter'
+import Modal from '../common/Modal'
+import Button from '../common/Button'
+import Dropdown from '../common/Dropdown'
 
 export default function Sidebar() {
   const navigate = useNavigate()
   const { t } = useLanguage()
   const { collapsed, mobileOpen, expandAndFocus, setMobileOpen, isMobile } = useSidebar()
-  const { conversations, currentId, selectConversation, deleteConversation, loadingHistory, newConversation } = useChat()
+  const { conversations, currentId, selectConversation, deleteConversation, renameConversation, exportConversationPDF, loadingHistory, loadingConversation, newConversation } = useChat()
   const [searchTerm, setSearchTerm] = useState('')
   const searchInputRef = useRef(null)
+  const [renamingId, setRenamingId] = useState(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
+  const [exportingId, setExportingId] = useState(null)
+  const renameInputRef = useRef(null)
 
   const filteredConvs = conversations.filter((c) =>
     c.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -32,6 +41,34 @@ export default function Sidebar() {
       setTimeout(() => searchInputRef.current?.focus(), 280)
     })
   }, [expandAndFocus])
+
+  const startRename = useCallback((conv) => {
+    setRenamingId(conv.id)
+    setRenameValue(conv.title)
+    requestAnimationFrame(() => {
+      setTimeout(() => renameInputRef.current?.focus(), 50)
+    })
+  }, [])
+
+  const commitRename = useCallback(() => {
+    if (renamingId && renameValue.trim()) {
+      renameConversation(renamingId, renameValue.trim())
+    }
+    setRenamingId(null)
+    setRenameValue('')
+  }, [renamingId, renameValue, renameConversation])
+
+  const cancelRename = useCallback(() => {
+    setRenamingId(null)
+    setRenameValue('')
+  }, [])
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (deleteConfirmId) {
+      deleteConversation(deleteConfirmId)
+      setDeleteConfirmId(null)
+    }
+  }, [deleteConfirmId, deleteConversation])
 
   const sidebarWidth = collapsed ? 'w-sidebar-collapsed' : 'w-sidebar-width'
 
@@ -137,27 +174,80 @@ export default function Sidebar() {
                       ? 'bg-primary-container dark:bg-primary/20 text-primary'
                       : 'hover:bg-surface-container-high dark:hover:bg-slate-800 text-on-surface dark:text-slate-200'
                   }`}
-                  onClick={() => selectConversation(conv.id)}
+                  onClick={async () => {
+                    if (renamingId === conv.id) return
+                    const success = await selectConversation(conv.id)
+                    if (success) navigate('/chat/' + conv.id)
+                  }}
                 >
-                  <span className="material-symbols-outlined text-lg text-on-surface-variant dark:text-slate-400 shrink-0">chat</span>
+                  {loadingConversation && conv.id === currentId ? (
+                    <span className="material-symbols-outlined text-lg text-on-surface-variant dark:text-slate-400 shrink-0 animate-spin">sync</span>
+                  ) : (
+                    <span className="material-symbols-outlined text-lg text-on-surface-variant dark:text-slate-400 shrink-0">chat</span>
+                  )}
                   {!collapsed && (
-                    <>
-                      <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0">
+                      {renamingId === conv.id ? (
+                        <input
+                          ref={renameInputRef}
+                          type="text"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onBlur={commitRename}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') commitRename()
+                            if (e.key === 'Escape') cancelRename()
+                            e.stopPropagation()
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full text-sm font-medium bg-surface-container-high dark:bg-slate-700 rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-primary text-on-surface dark:text-slate-200"
+                        />
+                      ) : (
                         <p className="text-sm font-medium truncate">{conv.title}</p>
-                        {conv.snippet && (
-                          <p className="text-xs text-on-surface-variant dark:text-slate-400 truncate">{conv.snippet}</p>
-                        )}
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          deleteConversation(conv.id)
-                        }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-on-surface-variant dark:text-slate-400 hover:text-error shrink-0"
-                      >
-                        <span className="material-symbols-outlined text-lg">close</span>
-                      </button>
-                    </>
+                      )}
+                      {conv.snippet && (
+                        <p className="text-xs text-on-surface-variant dark:text-slate-400 truncate">{conv.snippet}</p>
+                      )}
+                    </div>
+                  )}
+                  {!collapsed && (
+                    <div className="shrink-0">
+                      <Dropdown
+                        trigger={
+                          <button
+                            className="flex items-center justify-center w-7 h-7 text-on-surface-variant dark:text-slate-400 hover:text-on-surface dark:hover:text-white rounded-lg hover:bg-surface-container dark:hover:bg-slate-800 transition-colors"
+                            title={t('sidebar.moreOptions')}
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+                        }
+                        items={[
+                          {
+                            label: t('chat.renameTitle'),
+                            icon: <Pencil size={16} />,
+                            onClick: () => startRename(conv),
+                          },
+                          {
+                            label: t('share.exportPdf'),
+                            icon: exportingId === conv.id
+                              ? <span className="material-symbols-outlined animate-spin text-sm">sync</span>
+                              : <FileText size={16} />,
+                            onClick: async () => {
+                              setExportingId(conv.id)
+                              await exportConversationPDF(conv.id)
+                              setExportingId(null)
+                            },
+                          },
+                          {
+                            label: t('common.delete'),
+                            icon: <Trash2 size={16} />,
+                            destructive: true,
+                            onClick: () => setDeleteConfirmId(conv.id),
+                          },
+                        ]}
+                        align="right"
+                      />
+                    </div>
                   )}
                 </div>
               ))}
@@ -168,6 +258,26 @@ export default function Sidebar() {
         <SidebarFooter />
       </div>
     </aside>
+  )
+
+  const deleteModal = (
+    <Modal
+      open={!!deleteConfirmId}
+      onClose={() => setDeleteConfirmId(null)}
+      title={t('chat.deleteConfirmTitle')}
+    >
+      <p className="text-sm text-on-surface-variant dark:text-slate-400 mb-6">
+        {t('chat.deleteConfirmMessage')}
+      </p>
+      <div className="flex justify-end gap-3">
+        <Button variant="secondary" onClick={() => setDeleteConfirmId(null)}>
+          {t('common.cancel')}
+        </Button>
+        <Button variant="danger" onClick={handleDeleteConfirm}>
+          {t('common.confirm')}
+        </Button>
+      </div>
+    </Modal>
   )
 
   if (isMobile) {
@@ -189,9 +299,15 @@ export default function Sidebar() {
           )}
         </AnimatePresence>
         {aside}
+        {deleteModal}
       </>
     )
   }
 
-  return <>{aside}</>
+  return (
+    <>
+      {aside}
+      {deleteModal}
+    </>
+  )
 }
