@@ -8,7 +8,7 @@ import ChatInput from './ChatInput'
 
 export default function ChatWindow() {
   const { t } = useLanguage()
-  const { currentConversation, sendMessage, loading, streaming, loadingIntent } = useChat()
+  const { currentConversation, sendMessage, loading, loadingPhase, cancelGeneration } = useChat()
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -28,13 +28,13 @@ export default function ChatWindow() {
           ))}
         </AnimatePresence>
 
-        {loading && streaming && <TypingIndicator phase={loadingIntent ? 'intent' : 'query'} />}
+        {loading && <TypingIndicator phase={loadingPhase} />}
 
         <div ref={bottomRef} />
       </div>
 
       <div className="shrink-0 px-4 py-3 border-t border-slate-200/30 dark:border-slate-700/30 bg-surface/80 dark:bg-slate-900/80 backdrop-blur-sm">
-        <ChatInput onSend={handleSend} disabled={loading} placeholder={t('chat.followUpPlaceholder')} />
+        <ChatInput onSend={handleSend} loading={loading} onCancel={cancelGeneration} placeholder={t('chat.followUpPlaceholder')} />
       </div>
     </div>
   )

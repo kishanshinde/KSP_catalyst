@@ -261,6 +261,7 @@ module.exports = async (req, res) => {
     });
 
     req.on('end', async () => {
+    req.on('end', async () => {
         try {
             const data = JSON.parse(body);
             const userQuestion = data.question || data.message || data.user || '';
@@ -271,7 +272,12 @@ module.exports = async (req, res) => {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 return res.end(JSON.stringify({
                     success: false,
-                    error: 'No question provided'
+                    assistant: null,
+                    workspace: null,
+                    error: {
+                        message: 'No question provided',
+                        details: 'Request body must contain a question or message field.'
+                    }
                 }));
             }
 
@@ -280,7 +286,12 @@ module.exports = async (req, res) => {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 return res.end(JSON.stringify({
                     success: false,
-                    error: 'LLM_TOKEN not configured.'
+                    assistant: null,
+                    workspace: null,
+                    error: {
+                        message: 'Unable to process request.',
+                        details: 'LLM_TOKEN not configured.'
+                    }
                 }));
             }
 
@@ -303,11 +314,22 @@ module.exports = async (req, res) => {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 return res.end(JSON.stringify({
                     success: true,
-                    intent: intentResult,
-                    response: fallbackResponse,
-                    raw_data: null,
-                    data_count: 0,
-                    language: originalLanguage
+                    conversation: { id: null, title: 'New Investigation' },
+                    assistant: {
+                        role: 'assistant',
+                        content: fallbackResponse,
+                        timestamp: new Date().toISOString()
+                    },
+                    workspace: {
+                        type: 'empty',
+                        title: 'Search Result',
+                        data: { raw_data: [], data_count: 0 }
+                    },
+                    metadata: {
+                        language: originalLanguage,
+                        processingTime: 0,
+                        intent: intentResult?.intent || 'unknown'
+                    }
                 }));
             }
 
@@ -336,24 +358,71 @@ module.exports = async (req, res) => {
                 originalLanguage
             );
 
-            // ✅ STEP 6: Save conversation
-            console.log('[ai-chat] Step 5: Saving conversation...');
-            await saveConversationDirect(zcql, {
-                question: userQuestion,
-                response: finalResponse.response || 'No response generated',
-                intent: intentResult,
-                data_count: queryResult.length || 0,
-                language: originalLanguage
-            });
+            // ═══════════════════════════════════════════════════════════════
+            // SAVE DISABLED — Frontend is the single source of truth for
+            // conversation persistence. The frontend calls saveConversation()
+            // after receiving the assistant response. If the backend also
+            // saved here, it would create duplicate rows in the database
+            // and break the frontend's UPSERT tracking via backendId.
+            //
+            // The backend should only:
+            //   1. Process the request
+            //   2. Generate the AI response
+            //   3. Return the response
+            //
+            // Do NOT uncomment. If persistence logic changes, update the
+            // frontend's saveConversationToBackend() in ChatContext instead.
+            // ═══════════════════════════════════════════════════════════════
+            // console.log('[ai-chat] Step 5: Saving conversation...');
+            // await saveConversationDirect(zcql, {
+            //     question: userQuestion,
+            //     response: finalResponse.response || 'No response generated',
+            //     intent: intentResult,
+            //     data_count: queryResult.length || 0,
+            //     language: originalLanguage
+            // });
+
+            // Determine workspace type from intent
+            const workspaceTypeMap = {
+                criminal_history: 'profile',
+                search_fir: 'chart',
+                repeat_offenders: 'chart',
+                crime_hotspots: 'heatmap',
+                search_accused: 'profile',
+                monthly_crime_trends: 'trend',
+                fir_accused: 'profile',
+                risk_profile: 'profile'
+            };
+            const workspaceType = workspaceTypeMap[intentResult?.intent] || 'chart';
+
+            const hasData = queryResult && queryResult.length > 0;
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: true,
-                intent: intentResult,
-                response: finalResponse.response || 'No response generated',
-                raw_data: queryResult,
-                data_count: queryResult.length || 0,
-                language: originalLanguage
+                conversation: { id: null, title: 'New Investigation' },
+                assistant: {
+                    role: 'assistant',
+                    content: finalResponse.response || 'No response generated',
+                    timestamp: new Date().toISOString()
+                },
+                workspace: hasData ? {
+                    type: workspaceType,
+                    title: 'Analysis Result',
+                    data: {
+                        raw_data: queryResult,
+                        data_count: queryResult.length || 0
+                    }
+                } : {
+                    type: 'empty',
+                    title: 'Search Result',
+                    data: { raw_data: [], data_count: 0 }
+                },
+                metadata: {
+                    language: originalLanguage,
+                    processingTime: 0,
+                    intent: intentResult?.intent || 'unknown'
+                }
             }));
 
         } catch (err) {
@@ -361,7 +430,12 @@ module.exports = async (req, res) => {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: false,
-                error: err.message || 'Internal server error'
+                assistant: null,
+                workspace: null,
+                error: {
+                    message: 'Unable to process request.',
+                    details: err.message || 'Internal server error'
+                }
             }));
         }
     });
@@ -381,6 +455,14 @@ function callIntentClassifier(userQuestion, token) {
         const systemPrompt = `You are a precise JSON classifier for crime data queries. Always return valid JSON only.
 
 Supported intents:
+1. criminal_history - REQUIRED: accused_name
+2. search_fir - Optional: fir_number, status, location, crime_type
+3. repeat_offenders
+4. crime_hotspots - Optional: location
+5. search_accused - Optional: accused_name
+6. monthly_crime_trends
+7. fir_accused - REQUIRED: fir_number
+8. risk_profile - REQUIRED: accused_name
 1. criminal_history - REQUIRED: accused_name
 2. search_fir - Optional: fir_number, status, location, crime_type
 3. repeat_offenders
@@ -880,49 +962,57 @@ function safeString(value) {
 }
 
 // ============================================================
-// HELPER: Save Conversation
+// HELPER: Save Conversation (DISABLED)
 // ============================================================
+// ═══════════════════════════════════════════════════════════════
+// This function is intentionally disabled. Conversation
+// persistence is handled exclusively by the frontend via
+// saveConversationToBackend() in ChatContext.
+//
+// The backend must only process requests and return responses.
+// Do NOT uncomment this function.
+// ═══════════════════════════════════════════════════════════════
 
-function saveConversationDirect(zcql, data) {
-    return new Promise((resolve) => {
-        try {
-            const user_rowid = '47024000000029023';
-            const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
-            const conversation = JSON.stringify([
-                { role: 'user', content: data.question },
-                { role: 'assistant', content: data.response }
-            ]);
+// function saveConversationDirect(zcql, data) {
+//     return new Promise((resolve) => {
+//         try {
+//             const user_rowid = '47024000000029023';
+//             const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+//             const conversation = JSON.stringify([
+//                 { role: 'user', content: data.question },
+//                 { role: 'assistant', content: data.response }
+//             ]);
 
-            const query = `
-                INSERT INTO conversation_history (
-                    user_rowid, 
-                    conversation_title,
-                    conversation,
-                    question,
-                    response,
-                    language,
-                    created_at
-                ) VALUES (
-                    '${user_rowid}',
-                    '${safeString(data.question.substring(0, 50))}',
-                    '${safeString(conversation)}',
-                    '${safeString(data.question)}',
-                    '${safeString(data.response)}',
-                    '${data.language || 'en'}',
-                    '${timestamp}'
-                )
-            `;
+//             const query = `
+//                 INSERT INTO conversation_history (
+//                     user_rowid, 
+//                     conversation_title,
+//                     conversation,
+//                     question,
+//                     response,
+//                     language,
+//                     created_at
+//                 ) VALUES (
+//                     '${user_rowid}',
+//                     '${safeString(data.question.substring(0, 50))}',
+//                     '${safeString(conversation)}',
+//                     '${safeString(data.question)}',
+//                     '${safeString(data.response)}',
+//                     '${data.language || 'en'}',
+//                     '${timestamp}'
+//                 )
+//             `;
 
-            zcql.executeZCQLQuery(query).then(() => {
-                console.log('[ai-chat] ✅ Conversation saved successfully');
-                resolve();
-            }).catch((err) => {
-                console.error('[ai-chat] ❌ Failed to save conversation:', err);
-                resolve();
-            });
-        } catch (err) {
-            console.error('[ai-chat] ❌ Save conversation error:', err);
-            resolve();
-        }
-    });
-}
+//             zcql.executeZCQLQuery(query).then(() => {
+//                 console.log('[ai-chat] ✅ Conversation saved successfully');
+//                 resolve();
+//             }).catch((err) => {
+//                 console.error('[ai-chat] ❌ Failed to save conversation:', err);
+//                 resolve();
+//             });
+//         } catch (err) {
+//             console.error('[ai-chat] ❌ Save conversation error:', err);
+//             resolve();
+//         }
+//     });
+// }
