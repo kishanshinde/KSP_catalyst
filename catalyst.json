@@ -10,7 +10,6 @@
       "saveConversation",
       "generatePDF",
       "query",
-      "convokraftHandler",
       "getCurrentUser",
       "ai-response",
       "renameConversation",
