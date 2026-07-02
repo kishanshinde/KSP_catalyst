@@ -11,7 +11,13 @@
       "generatePDF",
       "query",
       "convokraftHandler",
-      "ai-response"
+      "ai-response",
+      "CrimeTrends",
+      "RecentCases",
+      "renameConversation",
+      "deleteConversation",
+      "listConversations",
+      "getCurrentUser"
     ],
     "ignore": [],
     "source": "functions"
