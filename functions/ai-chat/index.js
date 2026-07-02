@@ -261,6 +261,7 @@ module.exports = async (req, res) => {
     });
 
     req.on('end', async () => {
+    req.on('end', async () => {
         try {
             const data = JSON.parse(body);
             const userQuestion = data.question || data.message || data.user || '';
@@ -454,6 +455,14 @@ function callIntentClassifier(userQuestion, token) {
         const systemPrompt = `You are a precise JSON classifier for crime data queries. Always return valid JSON only.
 
 Supported intents:
+1. criminal_history - REQUIRED: accused_name
+2. search_fir - Optional: fir_number, status, location, crime_type
+3. repeat_offenders
+4. crime_hotspots - Optional: location
+5. search_accused - Optional: accused_name
+6. monthly_crime_trends
+7. fir_accused - REQUIRED: fir_number
+8. risk_profile - REQUIRED: accused_name
 1. criminal_history - REQUIRED: accused_name
 2. search_fir - Optional: fir_number, status, location, crime_type
 3. repeat_offenders
