@@ -170,5 +170,27 @@
   "fir.progress": "ಪ್ರಗತಿ",
   "fir.accused": "ಆರೋಪಿ",
   "fir.victim": "ಬಲಿಪಶು",
-  "fir.investigation": "ತನಿಖೆ"
+  "fir.investigation": "ತನಿಖೆ",
+
+  "crimeTrends.title": "ಅಪರಾಧ ಪ್ರವೃತ್ತಿಗಳು",
+  "crimeTrends.last7Days": "ಕಳೆದ 7 ದಿನಗಳು",
+  "crimeTrends.last30Days": "ಕಳೆದ 30 ದಿನಗಳು",
+  "crimeTrends.totalCrimes": "ಒಟ್ಟು ಅಪರಾಧಗಳು",
+  "crimeTrends.averagePerDay": "ಸರಾಸರಿ / ದಿನ",
+  "crimeTrends.peakDay": "ಗರಿಷ್ಠ ದಿನ",
+  "crimeTrends.trend": "ಪ್ರವೃತ್ತಿ",
+  "crimeTrends.crimeType": "ಅಪರಾಧ ಪ್ರಕಾರ",
+  "crimeTrends.count": "ಎಣಿಕೆ",
+  "crimeTrends.change": "ಬದಲಾವಣೆ",
+  "crimeTrends.downloadReport": "ಇಂಟೆಲಿಜೆನ್ಸ್ ವರದಿಯನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ",
+  "crimeTrends.generatingReport": "ವರದಿಯನ್ನು ರಚಿಸಲಾಗುತ್ತಿದೆ...",
+  "crimeTrends.pdfSuccess": "ಇಂಟೆಲಿಜೆನ್ಸ್ ವರದಿಯನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಡೌನ್‌ಲೋಡ್ ಮಾಡಲಾಗಿದೆ.",
+  "crimeTrends.pdfFailed": "ಇಂಟೆಲಿಜೆನ್ಸ್ ವರದಿಯನ್ನು ರಚಿಸಲು ವಿಫಲವಾಗಿದೆ.",
+  "crimeTrends.noData": "ಈ ಅವಧಿಗೆ ಯಾವುದೇ ಅಪರಾಧ ದತ್ತಾಂಶ ಲಭ್ಯವಿಲ್ಲ.",
+  "crimeTrends.error": "ಅಪರಾಧ ಪ್ರವೃತ್ತಿಗಳನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಿಲ್ಲ",
+  "crimeTrends.retry": "ಮರುಪ್ರಯತ್ನಿಸಿ",
+  "crimeTrends.loading": "ಅಪರಾಧ ಪ್ರವೃತ್ತಿಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...",
+  "crimeTrends.dailyTrend": "ದೈನಂದಿನ ಅಪರಾಧ ಪ್ರವೃತ್ತಿ",
+  "crimeTrends.crimeDistribution": "ಅಪರಾಧ ವಿತರಣೆ",
+  "crimeTrends.intelligenceInsights": "ಗುಪ್ತಚರ ಒಳನೋಟಗಳು"
 }

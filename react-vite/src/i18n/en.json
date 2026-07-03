@@ -170,5 +170,27 @@
   "fir.progress": "Progress",
   "fir.accused": "Accused",
   "fir.victim": "Victim",
-  "fir.investigation": "Investigation"
+  "fir.investigation": "Investigation",
+
+  "crimeTrends.title": "Crime Trends",
+  "crimeTrends.last7Days": "Last 7 Days",
+  "crimeTrends.last30Days": "Last 30 Days",
+  "crimeTrends.totalCrimes": "Total Crimes",
+  "crimeTrends.averagePerDay": "Avg / Day",
+  "crimeTrends.peakDay": "Peak Day",
+  "crimeTrends.trend": "Trend",
+  "crimeTrends.crimeType": "Crime Type",
+  "crimeTrends.count": "Count",
+  "crimeTrends.change": "Change",
+  "crimeTrends.downloadReport": "Download Intelligence Report",
+  "crimeTrends.generatingReport": "Generating Report...",
+  "crimeTrends.pdfSuccess": "Intelligence report downloaded successfully.",
+  "crimeTrends.pdfFailed": "Failed to generate intelligence report.",
+  "crimeTrends.noData": "No crime data available for this period.",
+  "crimeTrends.error": "Unable to load crime trends",
+  "crimeTrends.retry": "Retry",
+  "crimeTrends.loading": "Loading crime trends...",
+  "crimeTrends.dailyTrend": "Daily Crime Trend",
+  "crimeTrends.crimeDistribution": "Crime Distribution",
+  "crimeTrends.intelligenceInsights": "Intelligence Insights"
 }
