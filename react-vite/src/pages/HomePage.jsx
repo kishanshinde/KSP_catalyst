@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useChat } from '../context/ChatContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import SuggestedThreads from '../components/landing/SuggestedThreads'
-import ActiveCases from '../components/landing/ActiveCases'
+import RecentCases from '../components/dashboard/RecentCases'
 import LiveHotspots from '../components/landing/LiveHotspots'
 import CrimeTrends from '../components/dashboard/CrimeTrends'
 import PriorityAlerts from '../components/landing/PriorityAlerts'
@@ -65,7 +65,7 @@ export default function HomePage() {
 
       {/* Intelligence Workspace */}
       <section className="max-w-[1600px] mx-auto space-y-8 px-6">
-        <ActiveCases />
+        <RecentCases />
         <LiveHotspots />
         <CrimeTrends />
         <PriorityAlerts />
