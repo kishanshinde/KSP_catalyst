@@ -40,7 +40,7 @@
   "landing.executeQuery": "ಪ್ರಶ್ನೆಯನ್ನು ಕಾರ್ಯಗತಗೊಳಿಸಿ",
   "landing.suggestedThreads": "ಸೂಚಿಸಿದ ಎಳೆಗಳು",
 
-  "landing.activeCases": "ಸಕ್ರಿಯ ಪ್ರಕರಣಗಳು",
+  "landing.activeCases": "ಎಫ್ಐಆರ್ ಎಕ್ಸ್ಪ್ಲೋರರ್",
   "landing.totalInvestigations": "ಒಟ್ಟು 12 ತನಿಖೆಗಳು",
   "landing.criminalNetwork": "ಅಪರಾಧಿ ಜಾಲದ ದೃಶ್ಯೀಕರಣ",
   "landing.primarySuspect": "ಪ್ರಾಥಮಿಕ ಶಂಕಿತ",
@@ -59,6 +59,8 @@
   "landing.weeklyTrends": "ಸಾಪ್ತಾಹಿಕ ಪ್ರವೃತ್ತಿಗಳು",
   "landing.last7Days": "ಕೊನೆಯ 7 ದಿನಗಳು",
   "landing.last30Days": "ಕೊನೆಯ 30 ದಿನಗಳು",
+  "landing.viewMore": "{{count}} ಹೆಚ್ಚಿನ ಪ್ರಕರಣಗಳನ್ನು ವೀಕ್ಷಿಸಿ",
+  "landing.showLess": "ಕಡಿಮೆ ತೋರಿಸಿ",
   "landing.peak": "ಗರಿಷ್ಠ",
   "landing.cybercrimeAlerts": "ಸೈಬರ್ ಅಪರಾಧ ಎಚ್ಚರಿಕೆಗಳು",
   "landing.narcoticsArrests": "ಮಾದಕ ದ್ರವ್ಯ ಬಂಧನಗಳು",

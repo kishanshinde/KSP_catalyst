@@ -40,7 +40,7 @@
   "landing.executeQuery": "Execute Query",
   "landing.suggestedThreads": "Suggested Threads",
 
-  "landing.activeCases": "Active Cases",
+  "landing.activeCases": "FIR Explorer",
   "landing.totalInvestigations": "12 Total Investigations",
   "landing.criminalNetwork": "Criminal Network Visualization",
   "landing.primarySuspect": "Primary Suspect",
@@ -59,6 +59,8 @@
   "landing.weeklyTrends": "Weekly Trends",
   "landing.last7Days": "Last 7 Days",
   "landing.last30Days": "Last 30 Days",
+  "landing.viewMore": "View {{count}} More Cases",
+  "landing.showLess": "Show Less",
   "landing.peak": "Peak",
   "landing.cybercrimeAlerts": "Cybercrime Alerts",
   "landing.narcoticsArrests": "Narcotics Arrests",

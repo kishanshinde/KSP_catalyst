@@ -359,6 +359,21 @@ export const api = {
     return requestGet('/CrimeTrends', params, options).then(normalizeCrimeTrendResponse)
   },
 
+  getRecentCases(options = {}) {
+    if (USE_MOCK) {
+      return Promise.resolve({
+        success: true,
+        total: 3,
+        recentCases: [
+          { firNumber: 'FIR-2026-0012', description: 'Organized Retail Theft Ring', status: 'Open', statusColor: '#10B981', priority: 'High', priorityColor: '#F97316', dateRegistered: '14 Apr 2026' },
+          { firNumber: 'FIR-2026-0045', description: 'Financial Fraud - Crypto Mixer', status: 'Under Investigation', statusColor: '#F59E0B', priority: 'Critical', priorityColor: '#DC2626', dateRegistered: '10 Apr 2026' },
+          { firNumber: 'FIR-2026-0089', description: 'Unauthorized Border Crossing', status: 'Registered', statusColor: '#3B82F6', priority: 'Medium', priorityColor: '#EAB308', dateRegistered: '05 Apr 2026' },
+        ]
+      })
+    }
+    return requestGet('/RecentCases', null, options)
+  },
+
   async generateCrimeTrendsReport(data) {
     if (USE_MOCK) {
       return { blob: new Blob(['mock pdf'], { type: 'application/pdf' }) }
