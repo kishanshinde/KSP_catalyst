@@ -518,8 +518,9 @@ export function ChatProvider({ children }) {
 
       let aiResponse
       try {
+        const backendId = chat?.backendId || null
         aiResponse = await api.aiChat(
-          { message: text, language },
+          { message: text, language, conversationId: backendId },
           { signal: controller.signal }
         )
         clearInterval(loadingPhaseRef.current)
@@ -558,7 +559,11 @@ export function ChatProvider({ children }) {
         return
       }
 
-      const { assistant, workspace } = aiResponse
+      const { assistant, workspace, conversation: responseConversation } = aiResponse
+
+      if (responseConversation?.id) {
+        updateBackendId(chatId, responseConversation.id)
+      }
 
       if (!aiResponse.success) {
         const errMsg = aiResponse.error?.message || t('chat.errorUnableToUnderstand')
