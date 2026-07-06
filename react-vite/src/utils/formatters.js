@@ -1,26 +1,38 @@
+function parseSafeDate(date) {
+  if (date == null) return null
+  const d = new Date(date)
+  return isNaN(d.getTime()) ? null : d
+}
+
 export function formatDate(date, locale = 'en-IN') {
+  const d = parseSafeDate(date)
+  if (!d) return ''
   return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-  }).format(new Date(date))
+  }).format(d)
 }
 
 export function formatTime(date, locale = 'en-IN') {
+  const d = parseSafeDate(date)
+  if (!d) return ''
   return new Intl.DateTimeFormat(locale, {
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(date))
+  }).format(d)
 }
 
 export function formatDateTime(date, locale = 'en-IN') {
+  const d = parseSafeDate(date)
+  if (!d) return ''
   return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(date))
+  }).format(d)
 }
 
 export function formatNumber(num, locale = 'en-IN') {

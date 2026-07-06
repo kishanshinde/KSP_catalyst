@@ -32,7 +32,8 @@ export default function Modal({ open, onClose, title, children }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm"
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-black/30 dark:bg-black/60 backdrop-blur-sm"
             onClick={onClose}
             aria-hidden="true"
           />
@@ -40,16 +41,16 @@ export default function Modal({ open, onClose, title, children }) {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.2 }}
-            className="relative glass-strong rounded-xl w-full max-w-lg max-h-[80vh] overflow-auto shadow-xl"
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="relative w-full max-w-lg max-h-[80vh] overflow-auto rounded-xl border backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border-black/10 dark:border-white/10 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-label={title}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/50 dark:border-slate-700/50">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-black/10 dark:border-white/10">
               <h2 className="text-lg font-semibold text-on-surface dark:text-white">{title}</h2>
-              <button onClick={onClose} className="p-1 rounded-lg hover:bg-surface-container dark:hover:bg-slate-800 transition-colors" aria-label={t('common.closeModal')}>
-                <X size={20} />
+              <button onClick={onClose} className="p-1.5 rounded-lg text-on-surface-variant dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label={t('common.closeModal')}>
+                <X size={18} />
               </button>
             </div>
             <div className="p-6">{children}</div>

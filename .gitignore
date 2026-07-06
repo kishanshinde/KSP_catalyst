@@ -64,3 +64,8 @@ Thumbs.db
 .turbo/
 dist-ssr/
 *.rej
+
+
+
+# Additional files to ignore
+test-model.js

@@ -6,6 +6,7 @@ import { SidebarProvider } from './contexts/SidebarContext'
 import MainLayout from './components/layout/MainLayout'
 import HomePage from './pages/HomePage'
 import WorkspacePage from './pages/WorkspacePage'
+import ErrorBoundary from './components/common/ErrorBoundary'
 
 function PlaceholderPage({ titleKey }) {
   const { t } = useLanguage()
@@ -26,7 +27,7 @@ export default function App() {
             <MainLayout>
               <Routes>
                 <Route path="/" element={<HomePage />} />
-                <Route path="/chat/:id" element={<WorkspacePage />} />
+                <Route path="/chat/:id" element={<ErrorBoundary><WorkspacePage /></ErrorBoundary>} />
                 <Route
                   path="/analytics"
                   element={<PlaceholderPage titleKey="page.analytics" />}

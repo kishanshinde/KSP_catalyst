@@ -1,1 +1,0 @@
-{"execution":{"main":"index.js"},"deployment":{"stack":"node24","integration_config":[{"service":"Convokraft"}],"name":"convokraftHandler","type":"integration"}}
