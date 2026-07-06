@@ -2,12 +2,13 @@ import { useNavigate } from 'react-router-dom'
 import { useChat } from '../context/ChatContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import SuggestedThreads from '../components/landing/SuggestedThreads'
-import ActiveCases from '../components/landing/ActiveCases'
+import RecentCases from '../components/dashboard/RecentCases'
 import LiveHotspots from '../components/landing/LiveHotspots'
-import WeeklyTrends from '../components/landing/WeeklyTrends'
+import CrimeTrends from '../components/dashboard/CrimeTrends'
 import PriorityAlerts from '../components/landing/PriorityAlerts'
 import CriminalNetworkViz from '../components/landing/CriminalNetworkViz'
 import SystemFooter from '../components/landing/SystemFooter'
+import ToastContainer from '../components/common/Toast'
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -63,19 +64,16 @@ export default function HomePage() {
       </section>
 
       {/* Intelligence Workspace */}
-      <section className="max-w-5xl mx-auto space-y-6">
-        <ActiveCases />
+      <section className="max-w-[1600px] mx-auto space-y-8 px-6">
+        <RecentCases />
         <LiveHotspots />
-        <WeeklyTrends />
+        <CrimeTrends />
         <PriorityAlerts />
+        <CriminalNetworkViz />
       </section>
 
-      {/* Bottom Data Panel */}
-      <div className="max-w-5xl mx-auto">
-        <CriminalNetworkViz />
-      </div>
-
       <SystemFooter />
+      <ToastContainer />
     </div>
   )
 }
