@@ -737,6 +737,46 @@ module.exports = async (req, res) => {
                 }));
             }
 
+            // ✅ STEP 5.5: Handle network intents (call criminal-network-analysis function)
+            const networkIntents = ['criminal_network', 'network_analysis', 'network_metrics', 'network_path', 'network_community'];
+            if (networkIntents.includes(intentResult.intent)) {
+                console.log('[ai-chat] Step 3.5: Handling network intent:', intentResult.intent);
+                const networkResult = await handleNetworkIntent(intentResult, LLM_TOKEN, originalLanguage);
+
+                if (networkResult.success) {
+                    // Generate a text response about the network
+                    const networkTextResponse = await generateNetworkTextResponse(
+                        finalQuery, networkResult.workspace, LLM_TOKEN, originalLanguage, conversationHistory
+                    );
+
+                    // Save conversation
+                    const saveResult = await saveConversationDirect(zcql, {
+                        conversationId: conversationId,
+                        question: userQuestion,
+                        response: networkTextResponse || 'Network analysis complete',
+                        intent: intentResult,
+                        data_count: networkResult.workspace?.data?.nodes?.length || 0,
+                        language: originalLanguage
+                    });
+
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        success: true,
+                        conversation: { id: saveResult?.conversationId || null },
+                        intent: intentResult,
+                        response: networkTextResponse || 'Network analysis complete',
+                        workspace: networkResult.workspace,
+                        raw_data: networkResult.workspace?.data?.nodes || [],
+                        data_count: networkResult.workspace?.data?.nodes?.length || 0,
+                        language: originalLanguage
+                    }));
+                    return;
+                } else {
+                    console.error('[ai-chat] Network analysis failed:', networkResult.error);
+                    // Fall through to normal search flow
+                }
+            }
+
             // ✅ STEP 6: Search ALL tables
             console.log('[ai-chat] Step 4: Searching all tables...');
             
@@ -822,6 +862,11 @@ Supported intents:
 6. monthly_crime_trends
 7. fir_accused - REQUIRED: fir_number
 8. risk_profile - REQUIRED: accused_name
+9. criminal_network - REQUIRED: accused_name
+10. network_analysis - Full network analysis of all accused
+11. network_metrics - Network statistics and metrics
+12. network_path - REQUIRED: source_person, target_person
+13. network_community - Community detection analysis
 
 Examples:
 User: "What's the criminal history of Ravi Kumar?"
@@ -832,6 +877,18 @@ User: "Show all FIRs in Bangalore"
 
 User: "List repeat offenders"
 {"intent":"repeat_offenders"}
+
+User: "Show network of Ravi Kumar"
+{"intent":"criminal_network","accused_name":"Ravi Kumar"}
+
+User: "Analyze the full criminal network"
+{"intent":"network_analysis"}
+
+User: "Find connection between Ravi and Suresh"
+{"intent":"network_path","source_person":"Ravi","target_person":"Suresh"}
+
+User: "Show crime communities"
+{"intent":"network_community"}
 
 Return ONLY JSON. No markdown. No backticks.`;
 
@@ -1166,6 +1223,192 @@ async function searchAllTables(zcql, searchName) {
 
     console.log('[searchAllTables] Total results from all tables:', allResults.length);
     return allResults;
+}
+
+// ============================================================
+// HELPER: Call Criminal Network Analysis Function
+// ============================================================
+
+async function callCatalystFunction(functionName, payload, token) {
+    return new Promise((resolve, reject) => {
+        const postData = JSON.stringify(payload);
+
+        const options = {
+            hostname: 'api.catalyst.zoho.in',
+            path: `/server/v1/project/47024000000013051/function/${functionName}/execute`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Zoho-oauthtoken ${token}`,
+                'CATALYST-ORG': '60073436832',
+                'Content-Length': Buffer.byteLength(postData)
+            }
+        };
+
+        const request = https.request(options, response => {
+            let data = '';
+            response.on('data', chunk => { data += chunk; });
+            response.on('end', () => {
+                try {
+                    if (response.statusCode === 200) {
+                        resolve(JSON.parse(data));
+                    } else {
+                        console.error(`[callCatalystFunction] ${functionName} returned ${response.statusCode}:`, data);
+                        reject(new Error(`Function ${functionName} returned ${response.statusCode}`));
+                    }
+                } catch (err) {
+                    reject(err);
+                }
+            });
+        });
+
+        request.on('error', reject);
+        request.write(postData);
+        request.end();
+    });
+}
+
+async function handleNetworkIntent(intentResult, llmToken, originalLanguage) {
+    const actionMap = {
+        criminal_network: 'get_full_network',
+        network_analysis: 'get_full_network',
+        network_metrics: 'get_network_metrics',
+        network_path: 'find_shortest_path',
+        network_community: 'detect_communities',
+    };
+
+    const action = actionMap[intentResult.intent] || 'get_full_network';
+
+    const payload = {
+        action: action,
+        accused_name: intentResult.accused_name || null,
+        source_person: intentResult.source_person || null,
+        target_person: intentResult.target_person || null,
+    };
+
+    console.log('[handleNetworkIntent] Calling criminal-network-analysis with:', JSON.stringify(payload));
+
+    try {
+        const result = await callCatalystFunction('criminal-network-analysis', payload, llmToken);
+
+        if (!result || !result.success) {
+            console.error('[handleNetworkIntent] Function failed:', result);
+            return { success: false, error: 'Network analysis failed' };
+        }
+
+        console.log('[handleNetworkIntent] Got network data:', {
+            nodes: result.workspace?.data?.nodes?.length || 0,
+            edges: result.workspace?.data?.edges?.length || 0,
+        });
+
+        return {
+            success: true,
+            workspace: result.workspace || { type: 'network', data: result },
+        };
+    } catch (err) {
+        console.error('[handleNetworkIntent] Error calling function:', err.message);
+        return { success: false, error: err.message };
+    }
+}
+
+// ============================================================
+// HELPER: Generate Network Text Response
+// ============================================================
+
+async function generateNetworkTextResponse(resolvedQuery, workspace, llmToken, originalLanguage, conversationHistory) {
+    return new Promise(async (resolve) => {
+        if (!llmToken) {
+            resolve('Network analysis complete. Please see the interactive graph.');
+            return;
+        }
+
+        const networkData = workspace?.data || {};
+        const nodes = networkData.nodes || [];
+        const edges = networkData.edges || [];
+        const metrics = networkData.metrics || {};
+        const communities = networkData.communities || {};
+
+        const systemPrompt = `You are a Crime Intelligence Assistant for Karnataka State Police (KSP).
+The user has requested a criminal network analysis. Below is the network data.
+Provide a clear, professional summary of the criminal network. Highlight:
+- Key actors and their roles
+- Number of connections and communities
+- Any important patterns or insights
+- Risk assessment of the network
+Keep it concise (3-5 paragraphs). Use bullet points for key findings.`;
+
+        const dataContext = `
+Network Summary:
+- Total Nodes: ${nodes.length}
+- Total Connections: ${edges.length}
+- Network Density: ${metrics.density || 'N/A'}
+- Detected Communities: ${Object.keys(communities).length}
+- Key Actors: ${(metrics.topActors || []).slice(0, 5).map(a => `${a.label} (${a.role}, score: ${a.composite_score})`).join(', ') || 'N/A'}
+- Node Types: ${[...new Set(nodes.map(n => n.type))].join(', ')}
+`;
+
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            { role: 'system', content: `Network Data:\n${dataContext}` },
+            { role: 'user', content: resolvedQuery }
+        ];
+
+        const payload = JSON.stringify({
+            model: "crm-di-glm47b_30b_it",
+            messages: messages,
+            max_tokens: 1000,
+            temperature: 0.5,
+            stream: false,
+            chat_template_kwargs: { enable_thinking: false }
+        });
+
+        const options = {
+            hostname: 'api.catalyst.zoho.in',
+            path: '/quickml/v1/project/47024000000013051/glm/chat',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Zoho-oauthtoken ${llmToken}`,
+                'CATALYST-ORG': '60073436832',
+                'Content-Length': Buffer.byteLength(payload)
+            }
+        };
+
+        const request = https.request(options, response => {
+            let data = '';
+            response.on('data', chunk => { data += chunk; });
+            response.on('end', async () => {
+                try {
+                    let responseText = 'Network analysis complete. Please see the interactive graph.';
+                    if (response.statusCode === 200) {
+                        const parsed = JSON.parse(data);
+                        responseText = parsed.choices?.[0]?.message?.content ||
+                                      parsed.output?.text ||
+                                      parsed.response ||
+                                      responseText;
+                    }
+
+                    if (originalLanguage === 'kn') {
+                        try {
+                            const translated = await translateWithLLM(responseText, 'en', 'kn', llmToken);
+                            if (translated && translated !== responseText) responseText = translated;
+                        } catch (err) {
+                            console.error('[generateNetworkTextResponse] Translation failed:', err);
+                        }
+                    }
+
+                    resolve(responseText);
+                } catch (err) {
+                    console.error('[generateNetworkTextResponse] Error:', err);
+                    resolve('Network analysis complete. Please see the interactive graph.');
+                }
+            });
+        });
+
+        request.on('error', () => resolve('Network analysis complete. Please see the interactive graph.'));
+        request.write(payload);
+        request.end();
+    });
 }
 
 // ============================================================
