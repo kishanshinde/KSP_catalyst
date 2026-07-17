@@ -31,6 +31,9 @@ module.exports = async (req, res) => {
                     case 'get_full_network':
                         result = await getFullNetwork(zcql, params);
                         break;
+                    case 'get_summary':
+                        result = await getSummary(zcql, params);
+                        break;
                     case 'get_network_metrics':
                         result = await getNetworkMetrics(zcql, params);
                         break;
@@ -61,6 +64,26 @@ module.exports = async (req, res) => {
         res.end(JSON.stringify({ success: false, error: err.message }));
     }
 };
+
+// ============================================================
+// SAFE ROW ACCESS HELPER
+// ZCQL returns flat objects for simple queries (row.column)
+// and nested objects for JOINs (row.tableName.column)
+// ============================================================
+
+function getRow(row, tableName) {
+    if (!row) return {};
+    if (row[tableName] && typeof row[tableName] === 'object') {
+        return row[tableName];
+    }
+    // ZCQL wraps results in the SQL alias (e.g. fa, fv, fm) not the table name
+    for (const val of Object.values(row)) {
+        if (val && typeof val === 'object' && !Array.isArray(val)) {
+            return val;
+        }
+    }
+    return row;
+}
 
 // ============================================================
 // SAFE STRING HELPER
@@ -112,9 +135,15 @@ async function getFullNetwork(zcql, params = {}) {
     const edges = [];
     const nodeMap = new Map();
 
+    console.log(`[CNA] accusedRows: ${accusedRows.length}, victimRows: ${victimRows.length}, firRows: ${firRows.length}`);
+    console.log(`[CNA] firAccusedRows: ${firAccusedRows.length}, firVictimRows: ${firVictimRows.length}, moRows: ${moRows.length}, firMORows: ${firMORows.length}`);
+    if (accusedRows.length > 0) console.log(`[CNA] accused sample:`, JSON.stringify(accusedRows[0]));
+    if (firAccusedRows.length > 0) console.log(`[CNA] firAccused sample:`, JSON.stringify(firAccusedRows[0]));
+    if (firRows.length > 0) console.log(`[CNA] fir sample:`, JSON.stringify(firRows[0]));
+
     // Accused nodes
     for (const row of accusedRows) {
-        const a = row.accused;
+        const a = getRow(row, 'accused');
         const node = {
             id: `accused_${a.ROWID}`,
             label: a.full_name,
@@ -131,7 +160,7 @@ async function getFullNetwork(zcql, params = {}) {
 
     // Victim nodes
     for (const row of victimRows) {
-        const v = row.victim;
+        const v = getRow(row, 'victim');
         const node = {
             id: `victim_${v.ROWID}`,
             label: v.full_name,
@@ -146,17 +175,19 @@ async function getFullNetwork(zcql, params = {}) {
 
     // FIR nodes
     for (const row of firRows) {
-        const f = row.fir;
+        const f = row.f || row;
+        const loc = row.l || {};
+        const crime = row.c || {};
         const node = {
             id: `fir_${f.ROWID}`,
             label: f.fir_number,
             type: 'fir',
             status: f.status || 'Unknown',
             date_registered: f.date_registered || null,
-            crime_name: f.crime_name || 'Unknown',
-            parent_category: f.parent_category || 'Unknown',
-            city: f.city || 'Unknown',
-            district: f.district || 'Unknown',
+            crime_name: crime.crime_name || 'Unknown',
+            parent_category: crime.parent_category || 'Unknown',
+            city: loc.city || 'Unknown',
+            district: loc.district || 'Unknown',
             priority: f.priorites || 'Unknown',
             communityId: null,
         };
@@ -167,33 +198,38 @@ async function getFullNetwork(zcql, params = {}) {
     // Location nodes (deduplicated by city)
     const locationMap = new Map();
     for (const row of firRows) {
-        const f = row.fir;
-        if (!f.city && !f.district) continue;
-        const locKey = f.city || f.district;
+        const loc = row.l || {};
+        const city = loc.city;
+        const district = loc.district;
+        if (!city && !district) continue;
+        const locKey = city || district;
         if (!locationMap.has(locKey)) {
             const locNode = {
                 id: `location_${locKey}`,
                 label: locKey,
                 type: 'location',
-                district: f.district || 'Unknown',
-                latitude: f.latitude || null,
-                longitude: f.longitude || null,
+                district: district || 'Unknown',
+                latitude: loc.latitude || null,
+                longitude: loc.longitude || null,
+                fir_count: 0,
                 communityId: null,
             };
             locationMap.set(locKey, locNode);
             nodes.push(locNode);
             nodeMap.set(locNode.id, locNode);
         }
+        locationMap.get(locKey).fir_count++;
     }
 
     // MO nodes
     for (const row of moRows) {
-        const m = row.modus_operandi;
+        const m = getRow(row, 'modus_operandi');
         const node = {
             id: `mo_${m.ROWID}`,
             label: m.mo_name,
             type: 'mo',
             description: m.description || '',
+            fir_count: 0,
             communityId: null,
         };
         nodes.push(node);
@@ -203,7 +239,7 @@ async function getFullNetwork(zcql, params = {}) {
     // Edges: FIR ↔ Accused
     const edgeSet = new Set();
     for (const row of firAccusedRows) {
-        const fa = row.fir_accused;
+        const fa = getRow(row, 'fir_accused');
         const src = `accused_${fa.accused_rowid}`;
         const tgt = `fir_${fa.fir_rowid}`;
         if (nodeMap.has(src) && nodeMap.has(tgt)) {
@@ -222,7 +258,7 @@ async function getFullNetwork(zcql, params = {}) {
 
     // Edges: FIR ↔ Victim
     for (const row of firVictimRows) {
-        const fv = row.fir_victim;
+        const fv = getRow(row, 'fir_victim');
         const src = `victim_${fv.victim_rowid}`;
         const tgt = `fir_${fv.fir_rowid}`;
         if (nodeMap.has(src) && nodeMap.has(tgt)) {
@@ -236,9 +272,10 @@ async function getFullNetwork(zcql, params = {}) {
 
     // Edges: FIR ↔ Location
     for (const row of firRows) {
-        const f = row.fir;
+        const f = row.f || row;
+        const loc = row.l || {};
         const firId = `fir_${f.ROWID}`;
-        const locKey = f.city || f.district;
+        const locKey = loc.city || loc.district;
         const locId = `location_${locKey}`;
         if (locKey && nodeMap.has(firId) && nodeMap.has(locId)) {
             const ek = `${firId}->${locId}`;
@@ -251,7 +288,7 @@ async function getFullNetwork(zcql, params = {}) {
 
     // Edges: FIR ↔ MO
     for (const row of firMORows) {
-        const fm = row.fir_modus_operandi;
+        const fm = getRow(row, 'fir_modus_operandi');
         const firId = `fir_${fm.fir_rowid}`;
         const moId = `mo_${fm.mo_rowid}`;
         if (nodeMap.has(firId) && nodeMap.has(moId)) {
@@ -259,6 +296,8 @@ async function getFullNetwork(zcql, params = {}) {
             if (!edgeSet.has(ek)) {
                 edges.push({ source: firId, target: moId, type: 'USES_MO', label: 'Uses MO' });
                 edgeSet.add(ek);
+                const moNode = nodeMap.get(moId);
+                if (moNode) moNode.fir_count++;
             }
         }
     }
@@ -266,7 +305,7 @@ async function getFullNetwork(zcql, params = {}) {
     // Derived Edges: CO_ACCUSED (accused who share FIRs)
     const accusedToFIRs = new Map();
     for (const row of firAccusedRows) {
-        const fa = row.fir_accused;
+        const fa = getRow(row, 'fir_accused');
         const accId = `accused_${fa.accused_rowid}`;
         const firId = `fir_${fa.fir_rowid}`;
         if (!accusedToFIRs.has(accId)) accusedToFIRs.set(accId, new Set());
@@ -297,7 +336,7 @@ async function getFullNetwork(zcql, params = {}) {
     // Derived Edges: SHARED_LOCATION (accused in same city via FIR location)
     const accusedLocations = new Map();
     for (const row of firAccusedRows) {
-        const fa = row.fir_accused;
+        const fa = getRow(row, 'fir_accused');
         const accId = `accused_${fa.accused_rowid}`;
         const firId = `fir_${fa.fir_rowid}`;
         const firNode = nodeMap.get(firId);
@@ -328,13 +367,60 @@ async function getFullNetwork(zcql, params = {}) {
         }
     }
 
-    // Focus: if accused_name provided, mark as central and limit depth
+    // Search / Focus logic
+    console.log(`[CNA] Nodes: ${nodes.length}, Edges: ${edges.length}`);
+    if (params.search_type && params.search_query) {
+        const query = params.search_query.toLowerCase();
+        let centerNode = null;
+
+        if (params.search_type === 'name') {
+            centerNode = nodes.find(n =>
+                (n.type === 'accused' || n.type === 'victim') &&
+                n.label.toLowerCase().includes(query)
+            );
+        } else if (params.search_type === 'fir_number') {
+            centerNode = nodes.find(n =>
+                n.type === 'fir' &&
+                n.label.toLowerCase().includes(query)
+            );
+        } else if (params.search_type === 'location') {
+            centerNode = nodes.find(n =>
+                n.type === 'location' &&
+                n.label.toLowerCase().includes(query)
+            );
+        }
+
+        if (centerNode) {
+            centerNode.type = 'central';
+
+            // Auto-adaptive depth
+            const directEdges = edges.filter(e =>
+                e.source === centerNode.id || e.target === centerNode.id
+            ).length;
+
+            let depth;
+            if (params.depth) {
+                depth = Number(params.depth);
+            } else {
+                depth = directEdges > 10 ? 2 : 3;
+            }
+
+            const reachable = bfsReachable(centerNode.id, edges, depth);
+            const filteredNodes = nodes.filter(n => reachable.has(n.id) || n.id === centerNode.id);
+            const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
+            const filteredEdges = edges.filter(e =>
+                filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target)
+            );
+            return buildGraphResponse(filteredNodes, filteredEdges, params);
+        }
+    }
+
+    // Legacy support: accused_name focus
     if (params.accused_name) {
         const name = params.accused_name.toLowerCase();
         const central = nodes.find(n => n.type === 'accused' && n.label.toLowerCase().includes(name));
         if (central) {
             central.type = 'central';
-            // BFS to limit depth
             const depth = params.depth || 2;
             const reachable = bfsReachable(central.id, edges, depth);
             const filteredNodes = nodes.filter(n => reachable.has(n.id) || n.id === central.id);
@@ -347,6 +433,92 @@ async function getFullNetwork(zcql, params = {}) {
     }
 
     return buildGraphResponse(nodes, edges, params);
+}
+
+// ============================================================
+// GET SUMMARY (lightweight dashboard data)
+// ============================================================
+
+async function getSummary(zcql, params = {}) {
+    const accusedRows = await zcql.executeZCQLQuery(
+        `SELECT ROWID, full_name, gender, occupation, risk_score, is_repeat_offender FROM accused`
+    );
+
+    const firRows = await zcql.executeZCQLQuery(
+        `SELECT f.ROWID, f.fir_number, f.status, c.crime_name
+         FROM fir f
+         LEFT JOIN crime_type_master c ON c.ROWID = f.crime_type_rowid`
+    );
+
+    const firAccusedRows = await zcql.executeZCQLQuery(
+        `SELECT fa.fir_rowid, fa.accused_rowid, fa.role_in_crime FROM fir_accused fa`
+    );
+
+    // Build accused lookup and degree count
+    const accusedMap = new Map();
+    const accusedDegree = new Map();
+
+    for (const row of accusedRows) {
+        const a = getRow(row, 'accused');
+        const id = `accused_${a.ROWID}`;
+        accusedMap.set(id, {
+            id,
+            label: a.full_name,
+            type: 'accused',
+            risk_score: Number(a.risk_score || 0),
+            is_repeat_offender: a.is_repeat_offender || false,
+            gender: a.gender || 'Unknown',
+            occupation: a.occupation || 'Unknown',
+        });
+        accusedDegree.set(id, 0);
+    }
+
+    // Count FIRs per accused
+    for (const row of firAccusedRows) {
+        const fa = getRow(row, 'fir_accused');
+        const accId = `accused_${fa.accused_rowid}`;
+        if (accusedDegree.has(accId)) {
+            accusedDegree.set(accId, accusedDegree.get(accId) + 1);
+        }
+    }
+
+    // Top actors by degree (number of FIRs)
+    const topActors = [...accusedMap.values()]
+        .map(a => ({
+            ...a,
+            degree: accusedDegree.get(a.id) || 0,
+            composite_score: computeCompositeScoreSimple(a, accusedDegree),
+        }))
+        .sort((a, b) => b.composite_score - a.composite_score)
+        .slice(0, 10);
+
+    // Crime type distribution
+    const crimeTypes = {};
+    for (const row of firRows) {
+        const crime = row.c || {};
+        const crimeName = crime.crime_name || 'Unknown';
+        crimeTypes[crimeName] = (crimeTypes[crimeName] || 0) + 1;
+    }
+    const dominantCrimeType = Object.entries(crimeTypes)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, count]) => ({ name, count }));
+
+    return {
+        topActors,
+        totalActors: accusedMap.size,
+        totalFIRs: firRows.length,
+        totalCrimeTypes: Object.keys(crimeTypes).length,
+        dominantCrimeTypes: dominantCrimeType,
+    };
+}
+
+function computeCompositeScoreSimple(node, degreeMap) {
+    const deg = degreeMap.get(node.id) || 0;
+    const maxDeg = Math.max(...degreeMap.values(), 1);
+    const normDeg = deg / maxDeg;
+    const risk = (node.risk_score || 0) / 100;
+    return Number((0.4 * normDeg + 0.35 * risk + 0.25 * (node.is_repeat_offender ? 1 : 0)).toFixed(4));
 }
 
 // ============================================================

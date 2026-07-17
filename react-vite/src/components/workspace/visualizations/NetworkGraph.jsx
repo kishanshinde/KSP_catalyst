@@ -1,6 +1,5 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { useLanguage } from '../../../contexts/LanguageContext'
-import { mockCriminalNetworkData } from '../../../services/mockCriminalNetwork'
 
 const TYPE_COLORS = {
   central: '#FFFFFF',
@@ -35,7 +34,7 @@ function getNodeRadius(node) {
   return r
 }
 
-export default function NetworkGraph({ data }) {
+export default function NetworkGraph({ data, onNodeSelect }) {
   const { t } = useLanguage()
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
@@ -47,7 +46,7 @@ export default function NetworkGraph({ data }) {
   const zoomRef = useRef(1)
   const simAlphaRef = useRef(1)
 
-  const graphData = data?.nodes ? data : mockCriminalNetworkData
+  const graphData = data?.nodes ? data : null
 
   const [selectedNode, setSelectedNode] = useState(null)
   const [hoveredNode, setHoveredNode] = useState(null)
@@ -381,7 +380,11 @@ export default function NetworkGraph({ data }) {
       const moved = Math.abs(e.clientX - dragRef.current.startX) + Math.abs(e.clientY - dragRef.current.startY)
       if (moved < 5) {
         const node = nodesRef.current.find(n => n.id === dragRef.current.id)
-        if (node) setSelectedNode(prev => prev?.id === node.id ? null : node)
+        if (node) {
+          const next = selectedNode?.id === node.id ? null : node
+          setSelectedNode(next)
+          onNodeSelect?.(next)
+        }
       }
       dragRef.current = null
       return
@@ -392,11 +395,14 @@ export default function NetworkGraph({ data }) {
     }
     const node = findNodeAt(e.clientX, e.clientY)
     if (node) {
-      setSelectedNode(prev => prev?.id === node.id ? null : node)
+      const next = selectedNode?.id === node.id ? null : node
+      setSelectedNode(next)
+      onNodeSelect?.(next)
     } else {
       setSelectedNode(null)
+      onNodeSelect?.(null)
     }
-  }, [findNodeAt])
+  }, [findNodeAt, selectedNode, onNodeSelect])
 
   const handleWheel = useCallback((e) => {
     e.preventDefault()
@@ -414,7 +420,7 @@ export default function NetworkGraph({ data }) {
     setFilters(prev => ({ ...prev, [type]: !prev[type] }))
   }
 
-  if (!data?.nodes) {
+  if (!graphData?.nodes) {
     return (
       <div className="flex items-center justify-center h-full text-on-surface-variant/60 dark:text-slate-500 text-sm">
         {t('workspace.noData')}

@@ -395,6 +395,21 @@ export const api = {
     }
     return request('/deleteConversation', { conversationId })
   },
+
+  getCNASummary(options = {}) {
+    return request('/criminal-network-analysis', { action: 'get_summary' }, options)
+  },
+
+  searchCNANetwork({ searchType, searchQuery, depth }, options = {}) {
+    return request('/criminal-network-analysis', {
+      action: 'get_full_network',
+      params: { search_type: searchType, search_query: searchQuery, depth },
+    }, options)
+  },
+
+  getCNAFullNetwork(options = {}) {
+    return request('/criminal-network-analysis', { action: 'get_full_network' }, options)
+  },
 }
 
 export { ApiError }

@@ -1,5 +1,4 @@
 import { useLanguage } from '../../../contexts/LanguageContext'
-import { mockCriminalNetworkData } from '../../../services/mockCriminalNetwork'
 
 const ROLE_STYLES = {
   LEADER: 'bg-red-500/20 text-red-400 border-red-500/30',
@@ -12,13 +11,11 @@ const ROLE_STYLES = {
 export default function NetworkMetrics({ data }) {
   const { t } = useLanguage()
 
-  const dataWithMock = data?.metrics ? data : mockCriminalNetworkData
-
-  if (!dataWithMock?.metrics) {
+  if (!data?.metrics) {
     return <div className="text-on-surface-variant/60 dark:text-slate-500 text-sm">{t('workspace.noData')}</div>
   }
 
-  const { metrics, communities, nodes } = dataWithMock
+  const { metrics, communities } = data
   const topActors = metrics.topActors || []
 
   return (

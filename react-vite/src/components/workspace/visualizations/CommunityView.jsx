@@ -1,5 +1,4 @@
 import { useLanguage } from '../../../contexts/LanguageContext'
-import { mockCriminalNetworkData } from '../../../services/mockCriminalNetwork'
 
 const COMMUNITY_PALETTE = [
   { bg: 'bg-red-500/15', text: 'text-red-400', border: 'border-red-500/25', dot: 'bg-red-500' },
@@ -14,13 +13,11 @@ const COMMUNITY_PALETTE = [
 export default function CommunityView({ data }) {
   const { t } = useLanguage()
 
-  const dataWithMock = data?.communities && Object.keys(data.communities).length > 0 ? data : mockCriminalNetworkData
-
-  if (!dataWithMock?.communities || Object.keys(dataWithMock.communities).length === 0) {
+  if (!data?.communities || Object.keys(data.communities).length === 0) {
     return <div className="text-on-surface-variant/60 dark:text-slate-500 text-sm">{t('workspace.noData')}</div>
   }
 
-  const communities = Object.values(dataWithMock.communities).sort((a, b) => b.size - a.size)
+  const communities = Object.values(data.communities).sort((a, b) => b.size - a.size)
 
   return (
     <div className="space-y-3">

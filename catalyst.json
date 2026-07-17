@@ -16,7 +16,8 @@
       "deleteConversation",
       "listConversations",
       "CrimeTrends",
-      "RecentCases"
+      "RecentCases",
+      "criminal-network-analysis"
     ],
     "ignore": [],
     "source": "functions"
