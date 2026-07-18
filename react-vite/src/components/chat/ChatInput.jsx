@@ -5,6 +5,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { useChat } from '../../context/ChatContext'
 import VoiceButton from '../common/VoiceButton'
 import AttachmentButton from '../common/AttachmentButton'
+import useSpeechRecognition from '../../hooks/useSpeechRecognition'
 
 function formatSize(bytes) {
   if (!bytes) return ''
@@ -25,7 +26,18 @@ export default function ChatInput({ onSend, loading = false, onCancel, placehold
   const { attachments, addAttachments, removeAttachment } = useChat()
   const [text, setText] = useState('')
   const textareaRef = useRef(null)
-  const resolvedPlaceholder = placeholder || t('chat.inputPlaceholder')
+
+  const { language } = useLanguage()
+  const { isSupported: isVoiceSupported, isRecording, start, stop } = useSpeechRecognition({
+    lang: language === 'kn' ? 'kn-IN' : 'en-IN',
+    onResult: (transcript) => {
+      setText(prev => (prev ? prev + ' ' + transcript : transcript))
+    },
+  })
+
+  const resolvedPlaceholder = isRecording
+    ? t('common.recording')
+    : placeholder || t('chat.inputPlaceholder')
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current
@@ -37,6 +49,14 @@ export default function ChatInput({ onSend, loading = false, onCancel, placehold
   useEffect(() => {
     adjustHeight()
   }, [text, adjustHeight])
+
+  const handleVoiceClick = useCallback(() => {
+    if (isRecording) {
+      stop()
+    } else {
+      start()
+    }
+  }, [isRecording, start, stop])
 
   function handleSubmit() {
     const trimmed = text.trim()
@@ -97,7 +117,7 @@ export default function ChatInput({ onSend, loading = false, onCancel, placehold
           large ? 'p-4' : 'p-3'
         } transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary/30`}
       >
-        <AttachmentButton onFilesSelected={addAttachments} disabled={loading} />
+        <AttachmentButton onFilesSelected={addAttachments} disabled={loading || isRecording} />
 
         <textarea
           ref={textareaRef}
@@ -106,12 +126,17 @@ export default function ChatInput({ onSend, loading = false, onCancel, placehold
           onKeyDown={handleKeyDown}
           placeholder={resolvedPlaceholder}
           rows={1}
-          disabled={loading}
+          disabled={loading || isRecording}
           className="flex-1 bg-transparent resize-none text-sm text-on-surface dark:text-slate-200 placeholder:text-on-surface-variant/50 dark:placeholder:text-slate-500 focus:outline-none leading-relaxed max-h-[200px]"
           aria-label={t('chat.inputAriaLabel')}
         />
 
-        <VoiceButton disabled={loading} />
+        <VoiceButton
+          disabled={loading || !isVoiceSupported}
+          isRecording={isRecording}
+          onClick={handleVoiceClick}
+          title={!isVoiceSupported ? t('common.voiceNotSupported') : isRecording ? t('common.stopRecording') : t('common.voiceInput')}
+        />
 
         {loading ? (
           <motion.button

@@ -132,13 +132,15 @@ function buildContextWithSlidingWindow({
     conversationHistory = [],
     currentQuestion,
     databaseResults = null,
+    intent = 'general',
     maxTokens = 8000,
     reserveForResponse = 2000,
     maxHistoryExchanges = 2
 }) {
     const systemTokens = countTokens(systemPrompt);
     const questionTokens = countTokens(currentQuestion);
-    const dataTokens = databaseResults ? countTokens(JSON.stringify(databaseResults)) : 0;
+    const formattedData = databaseResults && databaseResults.length > 0 ? formatDataForLLM(databaseResults, intent) : '';
+    const dataTokens = formattedData ? countTokens(formattedData) : 0;
     const overhead = 100;
     
     const availableForHistory = maxTokens - reserveForResponse - systemTokens - questionTokens - dataTokens - overhead;
@@ -191,15 +193,14 @@ function buildContextWithSlidingWindow({
         messages.push(msg);
     }
     
-    if (databaseResults && databaseResults.length > 0) {
-        const summary = summarizeResults(databaseResults);
+    if (formattedData) {
         messages.push({
-            role: "system",
-            content: `Database Results Summary:\n${summary}`
+            role: "user",
+            content: `DATABASE RECORDS:\n${formattedData}\n---\nUser Question: ${currentQuestion}\n\nFormat the above records into a response.`
         });
+    } else {
+        messages.push({ role: "user", content: currentQuestion });
     }
-    
-    messages.push({ role: "user", content: currentQuestion });
     
     const totalTokens = countMessages(messages);
     console.log(`[ContextManager] Final context: ${messages.length} messages, ${totalTokens} tokens`);
@@ -220,32 +221,153 @@ function buildContextWithSlidingWindow({
 function summarizeResults(results) {
     if (!results || results.length === 0) return 'No data found.';
     
-    const items = results.slice(0, 10);
+    const items = results.slice(0, 20);
     let summary = `Found ${results.length} record(s).\n`;
     
     for (const item of items) {
         const fields = [];
-        if (item.fir_number) fields.push(`FIR: ${item.fir_number}`);
-        if (item.full_name) fields.push(`Name: ${item.full_name}`);
-        if (item.status) fields.push(`Status: ${item.status}`);
-        if (item.crime_type) fields.push(`Crime: ${item.crime_type}`);
-        if (item.date_registered) fields.push(`Date: ${item.date_registered}`);
-        if (item.role_in_crime) fields.push(`Role: ${item.role_in_crime}`);
+        if (item.name) fields.push(`Name: ${item.name}`);
+        if (item.gender && item.gender !== 'Unknown') fields.push(`Gender: ${item.gender}`);
+        if (item.dob && item.dob !== 'Unknown') fields.push(`DOB: ${item.dob}`);
+        if (item.occupation && item.occupation !== 'Unknown') fields.push(`Occupation: ${item.occupation}`);
+        if (item.address && item.address !== 'Unknown') fields.push(`Address: ${item.address}`);
+        if (item.phone_number && item.phone_number !== 'Unknown') fields.push(`Phone: ${item.phone_number}`);
         if (item.risk_score) fields.push(`Risk Score: ${item.risk_score}`);
+        if (item.is_repeat_offender) fields.push(`Repeat Offender: YES`);
+        if (item.fir_number) fields.push(`FIR: ${item.fir_number}`);
+        if (item.crime_type && item.crime_type !== 'Unknown') fields.push(`Crime: ${item.crime_type}`);
+        if (item.status && item.status !== 'Unknown') fields.push(`Status: ${item.status}`);
+        if (item.date_registered) fields.push(`Date: ${item.date_registered}`);
+        if (item.role_in_crime && item.role_in_crime !== 'Unknown') fields.push(`Role: ${item.role_in_crime}`);
+        if (item.city && item.city !== 'Unknown') fields.push(`City: ${item.city}`);
+        if (item.district && item.district !== 'Unknown') fields.push(`District: ${item.district}`);
+        if (item.description && item.description !== 'Unknown') fields.push(`Description: ${item.description}`);
+        if (item.priority && item.priority !== 'Unknown') fields.push(`Priority: ${item.priority}`);
+        if (item.victims && item.victims.length > 0) {
+            const victimNames = item.victims.map(v => v.name).join(', ');
+            fields.push(`Victims: ${victimNames}`);
+        }
+        if (item.investigation) {
+            const inv = item.investigation;
+            fields.push(`Investigation: ${inv.status || 'Unknown'} (Officer: ${inv.officer_name || 'Unknown'})`);
+            if (inv.start_date) fields.push(`Investigation Start: ${inv.start_date}`);
+        }
+        if (item.investigating_officer && item.investigating_officer !== 'Unknown') fields.push(`IO: ${item.investigating_officer}`);
         if (item.table) fields.push(`Source: ${item.table}`);
         
         if (fields.length > 0) {
             summary += `• ${fields.join(' | ')}\n`;
         } else {
-            summary += `• ${JSON.stringify(item).substring(0, 100)}...\n`;
+            summary += `• ${JSON.stringify(item).substring(0, 150)}...\n`;
         }
     }
     
-    if (results.length > 10) {
-        summary += `\n... and ${results.length - 10} more records.`;
+    if (results.length > 20) {
+        summary += `\n... and ${results.length - 20} more records.`;
     }
     
     return summary;
+}
+
+// ============================================================
+// FORMAT DATA FOR LLM (Clean structured text, no JSON noise)
+// ============================================================
+
+function formatDataForLLM(results, intent) {
+    if (!results || results.length === 0) {
+        return 'NO DATA FOUND. The database has no records matching this query.';
+    }
+
+    const fw = (val, fallback) => {
+        if (val === null || val === undefined || val === 'Unknown' || val === '') return fallback || 'Not Available';
+        return String(val);
+    };
+
+    let output = `DATABASE RECORDS FOUND: ${results.length} record(s)\n\n`;
+
+    // Group by person name for profile intents
+    const profileIntents = ['criminal_history', 'search_accused', 'risk_profile'];
+    const isProfile = profileIntents.includes(intent);
+
+    if (isProfile) {
+        // Collect accused record
+        const accused = results.find(r => r.table === 'accused');
+        if (accused) {
+            output += `=== ACCUSED PERSON PROFILE ===\n`;
+            output += `Name: ${fw(accused.name, 'Unknown')}\n`;
+            output += `Gender: ${fw(accused.gender)}\n`;
+            output += `Date of Birth: ${fw(accused.dob)}\n`;
+            output += `Occupation: ${fw(accused.occupation)}\n`;
+            output += `Address: ${fw(accused.address)}\n`;
+            output += `Phone: ${fw(accused.phone_number)}\n`;
+            output += `Risk Score: ${fw(accused.risk_score, '0')}\n`;
+            output += `Repeat Offender: ${accused.is_repeat_offender ? 'YES' : 'NO'}\n`;
+            output += `\n`;
+        }
+
+        // Group FIR cases
+        const firCases = results.filter(r => r.table === 'fir_accused');
+        if (firCases.length > 0) {
+            output += `=== CASE HISTORY (${firCases.length} case(s)) ===\n\n`;
+            for (let i = 0; i < firCases.length; i++) {
+                const fir = firCases[i];
+                output += `--- Case ${i + 1} ---\n`;
+                output += `FIR Number: ${fw(fir.fir_number)}\n`;
+                output += `Crime Type: ${fw(fir.crime_type)}\n`;
+                output += `Date Registered: ${fw(fir.date_registered)}\n`;
+                output += `Status: ${fw(fir.status)}\n`;
+                output += `Priority: ${fw(fir.priority)}\n`;
+                output += `Description: ${fw(fir.description)}\n`;
+                output += `Role in Crime: ${fw(fir.role_in_crime)}\n`;
+                output += `City: ${fw(fir.city)}\n`;
+                output += `District: ${fw(fir.district)}\n`;
+                if (fir.victims && fir.victims.length > 0) {
+                    output += `Victims:\n`;
+                    for (const v of fir.victims) {
+                        output += `  - ${fw(v.name)} (${fw(v.gender)}, ${fw(v.occupation)})\n`;
+                    }
+                }
+                if (fir.investigation) {
+                    output += `Investigation Status: ${fw(fir.investigation.status)}\n`;
+                    output += `Investigating Officer: ${fw(fir.investigation.officer_name)}\n`;
+                    output += `Investigation Start: ${fw(fir.investigation.start_date)}\n`;
+                    if (fir.investigation.end_date) {
+                        output += `Investigation End: ${fw(fir.investigation.end_date)}\n`;
+                    }
+                }
+                output += `\n`;
+            }
+        }
+    } else {
+        // Non-profile: list all records generically
+        for (let i = 0; i < Math.min(results.length, 20); i++) {
+            const r = results[i];
+            output += `--- Record ${i + 1} (${fw(r.type, r.table)}) ---\n`;
+            if (r.name) output += `Name: ${fw(r.name)}\n`;
+            if (r.fir_number) output += `FIR Number: ${fw(r.fir_number)}\n`;
+            if (r.crime_type) output += `Crime Type: ${fw(r.crime_type)}\n`;
+            if (r.status) output += `Status: ${fw(r.status)}\n`;
+            if (r.date_registered) output += `Date: ${fw(r.date_registered)}\n`;
+            if (r.gender && r.gender !== 'Unknown') output += `Gender: ${fw(r.gender)}\n`;
+            if (r.occupation && r.occupation !== 'Unknown') output += `Occupation: ${fw(r.occupation)}\n`;
+            if (r.address && r.address !== 'Unknown') output += `Address: ${fw(r.address)}\n`;
+            if (r.phone_number && r.phone_number !== 'Unknown') output += `Phone: ${fw(r.phone_number)}\n`;
+            if (r.risk_score) output += `Risk Score: ${fw(r.risk_score)}\n`;
+            if (r.role_in_crime) output += `Role: ${fw(r.role_in_crime)}\n`;
+            if (r.city && r.city !== 'Unknown') output += `City: ${fw(r.city)}\n`;
+            if (r.district && r.district !== 'Unknown') output += `District: ${fw(r.district)}\n`;
+            if (r.description && r.description !== 'Unknown') output += `Description: ${fw(r.description)}\n`;
+            if (r.victims && r.victims.length > 0) {
+                output += `Victims: ${r.victims.map(v => fw(v.name)).join(', ')}\n`;
+            }
+            if (r.investigation) {
+                output += `Investigation: ${fw(r.investigation.status)} (Officer: ${fw(r.investigation.officer_name)})\n`;
+            }
+            output += `\n`;
+        }
+    }
+
+    return output;
 }
 
 // ============================================================
@@ -260,12 +382,35 @@ function resolveContextAwareIntent(userQuestion, conversationHistory) {
     for (let i = conversationHistory.length - 1; i >= 0; i--) {
         const msg = conversationHistory[i];
         if (msg.role === 'assistant') {
-            const nameMatch = msg.content.match(/(?:Name|name):\s*([A-Za-z\s]+)/i);
-            if (nameMatch) {
-                lastEntity = nameMatch[1].trim();
+            // Pattern 1: "Name: Xxx Yyy" (explicit label)
+            const nameLabel = msg.content.match(/(?:Name|name):\s*([A-Za-z][A-Za-z\s]{1,40})/i);
+            if (nameLabel) {
+                lastEntity = nameLabel[1].trim();
                 lastEntityType = 'name';
                 break;
             }
+            // Pattern 2: "for the name Xxx Yyy" or "about Xxx Yyy"
+            const forName = msg.content.match(/(?:for|about|of|on)\s+(?:the\s+)?(?:name\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})/);
+            if (forName) {
+                lastEntity = forName[1].trim();
+                lastEntityType = 'name';
+                break;
+            }
+            // Pattern 3: bold markdown **Xxx Yyy**
+            const boldName = msg.content.match(/\*\*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\*\*/);
+            if (boldName) {
+                lastEntity = boldName[1].trim();
+                lastEntityType = 'name';
+                break;
+            }
+            // Pattern 4: "accused Xxx Yyy" / "person Xxx Yyy" / "suspect Xxx Yyy"
+            const roleName = msg.content.match(/(?:accused|person|suspect|individual|offender)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})/i);
+            if (roleName) {
+                lastEntity = roleName[1].trim();
+                lastEntityType = 'name';
+                break;
+            }
+            // Pattern 5: FIR number
             const firMatch = msg.content.match(/FIR[-_\s]?(\d{4}[-_\s]?\d+)/i);
             if (firMatch) {
                 lastEntity = firMatch[0];
@@ -780,7 +925,7 @@ module.exports = async (req, res) => {
             // ✅ STEP 6: Search ALL tables
             console.log('[ai-chat] Step 4: Searching all tables...');
             
-            let searchName = intentResult.accused_name || '';
+            let searchName = intentResult.accused_name || contextResolution.lastEntity || '';
             let queryResult = [];
             
             if (searchName) {
@@ -797,7 +942,8 @@ module.exports = async (req, res) => {
                 queryResult,
                 LLM_TOKEN,
                 originalLanguage,
-                conversationHistory
+                conversationHistory,
+                intentResult.intent
             );
 
             // ✅ STEP 8: Save conversation
@@ -905,7 +1051,7 @@ Return ONLY JSON. No markdown. No backticks.`;
                 }
             ],
             max_tokens: 300,
-            temperature: 0.3,
+            temperature: 0.1,
             stream: false,
             chat_template_kwargs: {
                 enable_thinking: false
@@ -1015,6 +1161,8 @@ async function searchAllTables(zcql, searchName) {
                     gender, 
                     occupation, 
                     address,
+                    phone_number,
+                    dob,
                     risk_score, 
                     is_repeat_offender
                 FROM accused
@@ -1040,6 +1188,9 @@ async function searchAllTables(zcql, searchName) {
             name: accused.full_name,
             gender: accused.gender || 'Unknown',
             occupation: accused.occupation || 'Unknown',
+            address: accused.address || 'Unknown',
+            phone_number: accused.phone_number || 'Unknown',
+            dob: accused.dob || 'Unknown',
             risk_score: accused.risk_score || 0,
             is_repeat_offender: accused.is_repeat_offender || false,
             rowid: accused.ROWID,
@@ -1049,14 +1200,20 @@ async function searchAllTables(zcql, searchName) {
         try {
             const firQuery = `
                 SELECT 
+                    f.ROWID as fir_rowid,
                     f.fir_number,
                     f.status,
                     f.date_registered,
+                    f.description,
+                    f.priorites,
                     c.crime_name,
-                    fa.role_in_crime
+                    fa.role_in_crime,
+                    l.city,
+                    l.district
                 FROM fir_accused fa
                 JOIN fir f ON f.ROWID = fa.fir_rowid
                 LEFT JOIN crime_type_master c ON c.ROWID = f.crime_type_rowid
+                LEFT JOIN location l ON l.ROWID = f.location_rowid
                 WHERE fa.accused_rowid = '${accused.ROWID}'
                 ORDER BY f.date_registered DESC
             `;
@@ -1064,17 +1221,84 @@ async function searchAllTables(zcql, searchName) {
             
             if (firResults && firResults.length > 0) {
                 for (const firRow of firResults) {
-                    allResults.push({
+                    const firData = firRow.f || {};
+                    const crimeData = firRow.c || {};
+                    const locData = firRow.l || {};
+                    const firROWID = firRow.fa?.fir_rowid || firData.ROWID || '';
+
+                    const firEntry = {
                         table: 'fir_accused',
                         type: 'FIR Case',
                         name: accused.full_name,
-                        fir_number: firRow.f?.fir_number || 'Unknown',
-                        status: firRow.f?.status || 'Unknown',
-                        date_registered: firRow.f?.date_registered || 'Unknown',
-                        crime_type: firRow.c?.crime_name || 'Unknown',
+                        fir_number: firData.fir_number || 'Unknown',
+                        status: firData.status || 'Unknown',
+                        date_registered: firData.date_registered || 'Unknown',
+                        description: firData.description || 'Unknown',
+                        priority: firData.priorites || 'Unknown',
+                        crime_type: crimeData.crime_name || 'Unknown',
                         role_in_crime: firRow.fa?.role_in_crime || 'Unknown',
-                        details: `Involved in FIR ${firRow.f?.fir_number || 'Unknown'}`
-                    });
+                        city: locData.city || 'Unknown',
+                        district: locData.district || 'Unknown',
+                        victims: [],
+                        investigation: null,
+                        details: `Involved in FIR ${firData.fir_number || 'Unknown'}`
+                    };
+
+                    if (firROWID) {
+                        try {
+                            const victimQuery = `
+                                SELECT 
+                                    v.full_name,
+                                    v.gender,
+                                    v.occupation,
+                                    v.phone_number
+                                FROM fir_victim fv
+                                JOIN victim v ON v.ROWID = fv.victim_rowid
+                                WHERE fv.fir_rowid = '${firROWID}'
+                            `;
+                            const victimResults = await zcql.executeZCQLQuery(victimQuery);
+                            if (victimResults && victimResults.length > 0) {
+                                firEntry.victims = victimResults.map(vr => {
+                                    const v = vr.v || {};
+                                    return {
+                                        name: v.full_name || 'Unknown',
+                                        gender: v.gender || 'Unknown',
+                                        occupation: v.occupation || 'Unknown',
+                                        phone_number: v.phone_number || 'Unknown'
+                                    };
+                                });
+                            }
+                        } catch (vErr) {
+                            console.log('[searchAllTables] Victim fetch failed:', vErr.message);
+                        }
+
+                        try {
+                            const invQuery = `
+                                SELECT 
+                                    i.status,
+                                    i.start_date,
+                                    i.end_date,
+                                    u.full_name as officer_name
+                                FROM investigation i
+                                LEFT JOIN users u ON u.ROWID = i.officer_rowid
+                                WHERE i.fir_rowid = '${firROWID}'
+                            `;
+                            const invResults = await zcql.executeZCQLQuery(invQuery);
+                            if (invResults && invResults.length > 0) {
+                                const inv = invResults[0];
+                                firEntry.investigation = {
+                                    status: inv.status || 'Unknown',
+                                    start_date: inv.start_date || 'Unknown',
+                                    end_date: inv.end_date || null,
+                                    officer_name: inv.officer_name || 'Unknown'
+                                };
+                            }
+                        } catch (iErr) {
+                            console.log('[searchAllTables] Investigation fetch failed:', iErr.message);
+                        }
+                    }
+
+                    allResults.push(firEntry);
                 }
             }
         } catch (err) {
@@ -1082,8 +1306,8 @@ async function searchAllTables(zcql, searchName) {
         }
     }
 
-    // TABLE 2: VICTIM
-    if (allResults.length === 0) {
+    // TABLE 2: VICTIM (always search to cross-reference)
+    {
         console.log('[searchAllTables] 🔍 Searching in VICTIM table...');
         let victimResults = [];
         
@@ -1129,8 +1353,8 @@ async function searchAllTables(zcql, searchName) {
         }
     }
 
-    // TABLE 3: FIR
-    if (allResults.length === 0) {
+    // TABLE 3: FIR (search for investigating officer mentions)
+    {
         console.log('[searchAllTables] 🔍 Searching in FIR table...');
         let firResults = [];
         
@@ -1177,8 +1401,8 @@ async function searchAllTables(zcql, searchName) {
         }
     }
 
-    // TABLE 4: USERS
-    if (allResults.length === 0) {
+    // TABLE 4: USERS (search for officer/user mentions)
+    {
         console.log('[searchAllTables] 🔍 Searching in USERS table...');
         let userResults = [];
         
@@ -1357,7 +1581,7 @@ Network Summary:
             model: "crm-di-glm47b_30b_it",
             messages: messages,
             max_tokens: 1000,
-            temperature: 0.5,
+            temperature: 0.1,
             stream: false,
             chat_template_kwargs: { enable_thinking: false }
         });
@@ -1421,7 +1645,8 @@ async function generateResponseWithContextManager(
     queryResult,
     llmToken,
     originalLanguage,
-    conversationHistory
+    conversationHistory,
+    intent
 ) {
     return new Promise(async (resolve) => {
         if (!llmToken) {
@@ -1435,26 +1660,89 @@ async function generateResponseWithContextManager(
         }
 
         // ============================================================
-        // STEP 1: Build System Prompt (with priority instruction)
+        // STEP 1: Build System Prompt (intent-aware, minimal, with example)
         // ============================================================
-        const systemPrompt = `You are a Crime Intelligence Assistant for Karnataka State Police (KSP).
 
-IMPORTANT: 
-- The "Database Results Summary" below contains the CURRENT, ACCURATE data.
-- If the Database Results Summary shows data, use it REGARDLESS of previous messages.
-- Previous messages may contain outdated information.
-- Always prioritize the Database Results Summary over conversation history.
+        let systemPrompt;
 
-Convert the database results into clear, professional, user-friendly responses.
+        const profileIntents = ['criminal_history', 'search_accused', 'risk_profile'];
+        const firIntents = ['search_fir', 'fir_accused'];
 
-Guidelines:
-1. Be professional and factual
-2. Format data in a readable way
-3. If the user asks for "history" or "record", provide a chronological summary
-4. If no data is found in the Database Results Summary, politely say so
-5. Use bullet points for cases
-6. Highlight important details (dates, FIR numbers, status)
-7. Group results by table/source (Accused, Victim, FIR, etc.)`;
+        if (profileIntents.includes(intent)) {
+            systemPrompt = `You are a crime data formatter. Format the DATABASE RECORDS below into a criminal profile.
+
+RULES:
+- Copy every value EXACTLY as it appears in the records. Do NOT invent, guess, or fabricate any value.
+- If a field says "Not Available", write "Not Available".
+- Do NOT add information that is not in the records.
+
+FORMAT the response like this example:
+
+## Criminal Profile: [Name]
+
+### Personal Details
+- **Name:** [exact value]
+- **Gender:** [exact value]
+- **Date of Birth:** [exact value]
+- **Occupation:** [exact value]
+- **Address:** [exact value]
+- **Phone:** [exact value]
+
+### Risk Assessment
+- **Risk Score:** [exact value]
+- **Repeat Offender:** [YES/NO]
+- **Threat Level:** [Based on risk score: Low if <4, Medium if 4-7, High if >7]
+
+### Case History
+For each case, list:
+- **FIR Number:** [exact value]
+- **Crime Type:** [exact value]
+- **Date Registered:** [exact value]
+- **Status:** [exact value]
+- **Priority:** [exact value]
+- **Description:** [exact value]
+- **Role in Crime:** [exact value]
+- **Location:** [City, District]
+
+### Victims
+For each case, list victims with name, gender, occupation.
+
+### Investigation
+For each case, list investigation status, officer name, start date.
+
+If the records show NO DATA FOUND, say: "No criminal records found for this person in the database."`;
+        } else if (firIntents.includes(intent)) {
+            systemPrompt = `You are a crime data formatter. Format the DATABASE RECORDS below into FIR details.
+
+RULES:
+- Copy every value EXACTLY as it appears. Do NOT fabricate any value.
+- If a field says "Not Available", write "Not Available".
+
+FORMAT the response like:
+## FIR Details: [FIR Number]
+- **Crime Type:** [exact value]
+- **Date Registered:** [exact value]
+- **Status:** [exact value]
+- **Priority:** [exact value]
+- **Description:** [exact value]
+- **Location:** [City, District]
+- **Accused:** [names and roles]
+- **Victims:** [names]
+- **Investigation:** [status, officer]
+
+If NO DATA FOUND, say: "No FIR records found."`;
+        } else {
+            systemPrompt = `You are a Crime Intelligence Assistant for Karnataka State Police (KSP).
+
+The DATABASE RECORDS below contain the accurate, current data. Use ONLY this data to answer.
+
+RULES:
+- Be professional, factual, and concise.
+- Use the actual data from the records. Do NOT fabricate values.
+- If no data is found, say so politely.
+- Use bullet points and bold labels for readability.
+- Highlight important details like dates, FIR numbers, status.`;
+        }
 
         // ============================================================
         // STEP 2: Build Context with Sliding Window
@@ -1464,6 +1752,7 @@ Guidelines:
             conversationHistory: conversationHistory,
             currentQuestion: resolvedQuery,
             databaseResults: queryResult,
+            intent: intent,
             maxTokens: 8000,
             reserveForResponse: 2000,
             maxHistoryExchanges: 2
@@ -1482,8 +1771,8 @@ Guidelines:
         const payload = JSON.stringify({
             model: "crm-di-glm47b_30b_it",
             messages: context.messages,
-            max_tokens: 1500,
-            temperature: 0.5,
+            max_tokens: 3000,
+            temperature: 0.1,
             stream: false,
             chat_template_kwargs: {
                 enable_thinking: false

@@ -17,7 +17,9 @@
       "listConversations",
       "CrimeTrends",
       "RecentCases",
-      "criminal-network-analysis"
+      "criminal-network-analysis",
+      "speech-to-text",
+      "text-to-speech"
     ],
     "ignore": [],
     "source": "functions"
