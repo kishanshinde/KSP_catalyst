@@ -101,12 +101,14 @@ export default function NetworkGraph({ data, onNodeSelect }) {
     const cx = dimensions.width / 2
     const cy = dimensions.height / 2
     const existingMap = new Map(nodesRef.current.map(n => [n.id, n]))
+    const nodeCount = filteredData.nodes.length
+    const spread = Math.max(400, Math.sqrt(nodeCount) * 40)
     nodesRef.current = filteredData.nodes.map(n => {
       const existing = existingMap.get(n.id)
       return {
         ...n,
-        x: existing?.x ?? cx + (Math.random() - 0.5) * 300,
-        y: existing?.y ?? cy + (Math.random() - 0.5) * 300,
+        x: existing?.x ?? cx + (Math.random() - 0.5) * spread,
+        y: existing?.y ?? cy + (Math.random() - 0.5) * spread,
         vx: existing?.vx ?? 0,
         vy: existing?.vy ?? 0,
         r: getNodeRadius(n),
@@ -155,9 +157,9 @@ export default function NetworkGraph({ data, onNodeSelect }) {
             let dx = nodes[j].x - nodes[i].x
             let dy = nodes[j].y - nodes[i].y
             let dist = Math.sqrt(dx * dx + dy * dy) || 1
-            const minDist = (nodes[i].r + nodes[j].r) * 1.8
+            const minDist = (nodes[i].r + nodes[j].r) * 2.5
             if (dist < minDist) {
-              const force = (minDist - dist) / dist * 0.5 * alpha
+              const force = (minDist - dist) / dist * 0.7 * alpha
               nodes[i].vx -= dx * force
               nodes[i].vy -= dy * force
               nodes[j].vx += dx * force
@@ -173,8 +175,8 @@ export default function NetworkGraph({ data, onNodeSelect }) {
           let dx = t.x - s.x
           let dy = t.y - s.y
           let dist = Math.sqrt(dx * dx + dy * dy) || 1
-          const idealDist = e.type === 'CO_ACCUSED' ? 60 : e.type === 'ACCUSED_OF' ? 80 : 90
-          const force = (dist - idealDist) / dist * 0.06 * alpha
+          const idealDist = e.type === 'CO_ACCUSED' ? 140 : e.type === 'ACCUSED_OF' ? 180 : 200
+          const force = (dist - idealDist) / dist * 0.08 * alpha
           s.vx += dx * force
           s.vy += dy * force
           t.vx -= dx * force
@@ -182,9 +184,9 @@ export default function NetworkGraph({ data, onNodeSelect }) {
         }
 
         for (const n of nodes) {
-          n.vx += (width / 2 - n.x) * 0.003 * alpha
-          n.vy += (height / 2 - n.y) * 0.003 * alpha
-          const charge = (n.type === 'central' ? -400 : n.type === 'accused' ? -150 : -80) * alpha
+          n.vx += (width / 2 - n.x) * 0.002 * alpha
+          n.vy += (height / 2 - n.y) * 0.002 * alpha
+          const charge = (n.type === 'central' ? -800 : n.type === 'accused' ? -400 : -200) * alpha
           for (const m of nodes) {
             if (m === n) continue
             let dx = n.x - m.x
@@ -310,6 +312,31 @@ export default function NetworkGraph({ data, onNodeSelect }) {
     animRef.current = requestAnimationFrame(draw)
     return () => { if (animRef.current) cancelAnimationFrame(animRef.current) }
   }, [dimensions, selectedNode, highlightedIds])
+
+  useEffect(() => {
+    let cancelled = false
+    const checkFit = setInterval(() => {
+      if (cancelled || simAlphaRef.current > 0.01 || !nodesRef.current.length) return
+      clearInterval(checkFit)
+      const nodes = nodesRef.current
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+      for (const n of nodes) {
+        if (n.x < minX) minX = n.x
+        if (n.x > maxX) maxX = n.x
+        if (n.y < minY) minY = n.y
+        if (n.y > maxY) maxY = n.y
+      }
+      const gw = maxX - minX || 1
+      const gh = maxY - minY || 1
+      const pad = 80
+      const sx = (dimensions.width - pad * 2) / gw
+      const sy = (dimensions.height - pad * 2) / gh
+      zoomRef.current = Math.min(sx, sy, 1.5)
+      panRef.current.x = (dimensions.width - gw * zoomRef.current) / 2 - minX * zoomRef.current
+      panRef.current.y = (dimensions.height - gh * zoomRef.current) / 2 - minY * zoomRef.current
+    }, 200)
+    return () => { cancelled = true; clearInterval(checkFit) }
+  }, [dimensions, filteredData])
 
   const screenToGraph = useCallback((clientX, clientY) => {
     const canvas = canvasRef.current
