@@ -1,0 +1,146 @@
+[
+  {
+    "name": "authentication",
+    "source_endpoint": "/authentication",
+    "target_endpoint": "/server/authentication/",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000088099"
+  },
+  {
+    "name": "getCurrentUser",
+    "source_endpoint": "/getCurrentUser",
+    "target_endpoint": "/server/getCurrentUser/",
+    "target": "advancedio",
+    "method": "GET",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000088032"
+  },
+  {
+    "name": "generatePDF",
+    "source_endpoint": "/generatePDF",
+    "target_endpoint": "/server/generatePDF/",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000032058"
+  },
+  {
+    "name": "Query",
+    "source_endpoint": "/server/query/{path1:(.*)}",
+    "target_endpoint": "/server/query/",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000034004"
+  },
+  {
+    "name": "saveConversation",
+    "source_endpoint": "/saveConversation",
+    "target_endpoint": "/server/saveConversation/",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000042016"
+  },
+  {
+    "name": "logEvidence",
+    "source_endpoint": "/logEvidence",
+    "target_endpoint": "/server/logEvidence/",
+    "target": "advancedio",
+    "method": "POST",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000055002"
+  },
+  {
+    "name": "dashboardAggregation",
+    "source_endpoint": "/dashboardAggregation",
+    "target_endpoint": "/server/dashboardAggregation/",
+    "target": "advancedio",
+    "method": "GET",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000055019"
+  },
+  {
+    "name": "listConversations",
+    "source_endpoint": "/listConversations",
+    "target_endpoint": "/server/listConversations/",
+    "target": "advancedio",
+    "method": "GET",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000088042"
+  },
+  {
+    "name": "renameConversation",
+    "source_endpoint": "/renameConversation",
+    "target_endpoint": "/server/renameConversation/",
+    "target": "advancedio",
+    "method": "POST",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000088048"
+  },
+  {
+    "name": "deleteConversation",
+    "source_endpoint": "/deleteConversation",
+    "target_endpoint": "/server/deleteConversation/",
+    "target": "advancedio",
+    "method": "POST",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000088045"
+  },
+  {
+    "name": "CrimeTrends",
+    "source_endpoint": "/CrimeTrends",
+    "target_endpoint": "/server/CrimeTrends/",
+    "target": "advancedio",
+    "method": "GET",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000088065"
+  },
+  {
+    "name": "RecentCases",
+    "source_endpoint": "/RecentCases",
+    "target_endpoint": "/server/RecentCases/",
+    "target": "advancedio",
+    "method": "GET",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000088060"
+  }
+]

@@ -34,6 +34,15 @@
   "header.brand": "KSP",
   "header.brandHighlight": "Lumina",
 
+  "auth.loginTitle": "Karnataka State Police",
+  "auth.loginSubtitle": "Lumina Crime Intelligence Portal",
+  "auth.badgeId": "Badge / Officer ID",
+  "auth.officerName": "Officer Full Name",
+  "auth.role": "Assigned Unit / Role",
+  "auth.authenticate": "Authenticate Session",
+  "auth.ssoButton": "Launch Zoho Catalyst SSO",
+  "auth.signOut": "Sign Out",
+
   "landing.welcome": "Welcome, Officer.",
   "landing.subtitle": "How can I assist your investigation today?",
   "landing.searchPlaceholder": "Ask anything about FIRs, Accused, Victims, Investigation, Crime Patterns...",

@@ -2,11 +2,13 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext'
 import { ChatProvider } from './context/ChatContext'
+import { AuthProvider } from './contexts/AuthContext'
 import { SidebarProvider } from './contexts/SidebarContext'
 import MainLayout from './components/layout/MainLayout'
 import HomePage from './pages/HomePage'
 import WorkspacePage from './pages/WorkspacePage'
 import ErrorBoundary from './components/common/ErrorBoundary'
+import ProtectedRoute from './components/common/ProtectedRoute'
 
 function PlaceholderPage({ titleKey }) {
   const { t } = useLanguage()
@@ -22,28 +24,32 @@ export default function App() {
     <BrowserRouter>
       <ThemeProvider>
         <LanguageProvider>
-          <SidebarProvider>
-            <ChatProvider>
-            <MainLayout>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/chat/:id" element={<ErrorBoundary><WorkspacePage /></ErrorBoundary>} />
-                <Route
-                  path="/analytics"
-                  element={<PlaceholderPage titleKey="page.analytics" />}
-                />
-                <Route
-                  path="/reports"
-                  element={<PlaceholderPage titleKey="page.reports" />}
-                />
-                <Route
-                  path="/settings"
-                  element={<PlaceholderPage titleKey="page.settings" />}
-                />
-              </Routes>
-            </MainLayout>
-          </ChatProvider>
-          </SidebarProvider>
+          <AuthProvider>
+            <ProtectedRoute>
+              <SidebarProvider>
+                <ChatProvider>
+                  <MainLayout>
+                    <Routes>
+                      <Route path="/" element={<HomePage />} />
+                      <Route path="/chat/:id" element={<ErrorBoundary><WorkspacePage /></ErrorBoundary>} />
+                      <Route
+                        path="/analytics"
+                        element={<PlaceholderPage titleKey="page.analytics" />}
+                      />
+                      <Route
+                        path="/reports"
+                        element={<PlaceholderPage titleKey="page.reports" />}
+                      />
+                      <Route
+                        path="/settings"
+                        element={<PlaceholderPage titleKey="page.settings" />}
+                      />
+                    </Routes>
+                  </MainLayout>
+                </ChatProvider>
+              </SidebarProvider>
+            </ProtectedRoute>
+          </AuthProvider>
         </LanguageProvider>
       </ThemeProvider>
     </BrowserRouter>

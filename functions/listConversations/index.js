@@ -1,4 +1,5 @@
 const catalyst = require("zcatalyst-sdk-node");
+const { resolveUserRow } = require("./resolveUser");
 
 module.exports = (req, res) => {
     return new Promise((resolve) => {
@@ -26,8 +27,19 @@ async function processList(req, res, resolve) {
         const catalystApp = catalyst.initialize(req);
         const zcql = catalystApp.zcql();
 
-        // Hardcoded user_rowid until auth is implemented
-        const userRowId = '47024000000029023';
+        // Resolve the logged-in user's Datastore row (users table)
+        const resolved = await resolveUserRow(catalystApp);
+        if (!resolved) {
+            setCorsHeaders(res);
+            res.writeHead(401, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({
+                success: false,
+                code: 'AUTH_REQUIRED',
+                message: 'Authentication required. Please sign in.',
+            }));
+            return resolve();
+        }
+        const userRowId = resolved.rowid;
 
         const query = `
             SELECT ROWID, conversation_title, language, created_at

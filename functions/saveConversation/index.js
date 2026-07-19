@@ -1,4 +1,5 @@
 const catalyst = require("zcatalyst-sdk-node");
+const { resolveUserRow } = require("./resolveUser");
 
 module.exports = (req, res) => {
     return new Promise((resolve) => {
@@ -66,11 +67,22 @@ async function processAndSave(body, req, res, resolve) {
             ? conversationPayload.messages
             : [];
 
-        // Hardcoded user_rowid (BigInt FK) until auth is implemented
-        const user_rowid = '47024000000029023';
-
         const catalystApp = catalyst.initialize(req);
         const zcql = catalystApp.zcql();
+
+        // Resolve the logged-in user's Datastore row (users table)
+        const resolved = await resolveUserRow(catalystApp);
+        if (!resolved) {
+            setCorsHeaders(res);
+            res.writeHead(401, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({
+                success: false,
+                code: 'AUTH_REQUIRED',
+                message: 'Authentication required. Please sign in.',
+            }));
+            return resolve();
+        }
+        const user_rowid = resolved.rowid;
 
         const timestamp = created_at || new Date().toISOString().slice(0, 19).replace('T', ' ');
 
@@ -105,7 +117,7 @@ async function processAndSave(body, req, res, resolve) {
             const updateQuery = `
                 UPDATE conversation_history
                 SET ${setClauses.join(', ')}
-                WHERE ROWID = ${conversationId}
+                WHERE ROWID = ${conversationId} AND user_rowid = ${user_rowid}
             `;
 
             console.log("Executing ZCQL UPDATE:", updateQuery);

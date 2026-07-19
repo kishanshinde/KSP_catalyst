@@ -28,7 +28,12 @@ async function requestGet(endpoint, params, options = {}) {
   try {
     const response = await fetch(`${API_BASE}${endpoint}${query}`, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        'Cache-Control': 'no-cache',
+      },
+      credentials: 'include',
+      cache: 'no-store',
       signal,
     })
 
@@ -82,7 +87,13 @@ async function request(endpoint, body, options = {}) {
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+      },
+      credentials: 'include',
+      cache: 'no-store',
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal,
     })
@@ -133,7 +144,13 @@ async function requestBlob(endpoint, body, options = {}) {
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Accept: 'application/pdf,application/json',
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+      },
+      credentials: 'include',
+      cache: 'no-store',
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal,
     })
@@ -253,7 +270,7 @@ export const api = {
     if (USE_MOCK) {
       return Promise.resolve(mockDashboardResponse())
     }
-    return request('/dashboardAggregation')
+    return requestGet('/dashboardAggregation')
   },
 
   saveConversation(data) {
@@ -272,7 +289,7 @@ export const api = {
         ],
       })
     }
-    return request('/listConversations')
+    return requestGet('/listConversations')
   },
 
   getConversation(conversationId) {

@@ -16,7 +16,9 @@
       "deleteConversation",
       "listConversations",
       "CrimeTrends",
-      "RecentCases"
+      "RecentCases",
+      "authentication",
+      "syncCrimeMLFeatures"
     ],
     "ignore": [],
     "source": "functions"
@@ -26,5 +28,9 @@
       "name": "react-vite",
       "source": "./react-vite"
     }
-  ]
+  ],
+  "apig": {
+    "rules": "catalyst-user-rules.json",
+    "enabled": true
+  }
 }

@@ -2,6 +2,7 @@
 'use strict';
 
 const catalyst = require('zcatalyst-sdk-node');
+const { resolveUserRow } = require('./resolveUser');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
@@ -697,6 +698,17 @@ module.exports = async (req, res) => {
             const app = catalyst.initialize(req);
             const zcql = app.zcql();
 
+            // Resolve the logged-in user's Datastore row (users table)
+            const resolvedUser = await resolveUserRow(app);
+            if (!resolvedUser) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                return res.end(JSON.stringify({
+                    success: false,
+                    code: 'AUTH_REQUIRED',
+                    error: 'Authentication required. Please sign in.'
+                }));
+            }
+
             // ✅ STEP 3: Fetch Conversation History (with corruption handling)
             let conversationHistory = [];
             if (conversationId) {
@@ -764,6 +776,7 @@ module.exports = async (req, res) => {
             console.log('[ai-chat] Step 6: Saving conversation...');
             const saveResult = await saveConversationDirect(zcql, {
                 conversationId: conversationId,
+                user_rowid: resolvedUser.rowid,
                 question: userQuestion,
                 response: finalResponse.response || 'No response generated',
                 intent: intentResult,
@@ -1404,7 +1417,7 @@ function safeString(value) {
 function saveConversationDirect(zcql, data) {
     return new Promise((resolve) => {
         try {
-            const user_rowid = '47024000000029023';
+            const user_rowid = data.user_rowid;
             const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
             const newExchange = [
                 { role: 'user', content: data.question },
