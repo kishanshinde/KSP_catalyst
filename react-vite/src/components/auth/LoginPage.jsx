@@ -1,7 +1,30 @@
-import { useAuth } from '../../contexts/AuthContext'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth, POST_LOGIN_REDIRECT_KEY } from '../../contexts/AuthContext'
 
 export default function LoginPage() {
   const { login } = useAuth()
+  const navigate = useNavigate()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError('')
+    setSubmitting(true)
+    try {
+      await login(email, password)
+      const target = sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY)
+      sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY)
+      navigate(target || '/', { replace: true })
+    } catch (err) {
+      setError(err.message || 'Sign in failed. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-slate-950 text-slate-100 font-sans selection:bg-primary selection:text-white">
@@ -13,9 +36,9 @@ export default function LoginPage() {
       <div className="absolute top-1/4 left-1/3 -translate-x-1/2 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none animate-pulse" />
       <div className="absolute bottom-1/4 right-1/3 translate-x-1/2 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Main Glassmorphic SSO Card */}
-      <div className="relative z-10 w-full max-w-md p-8 sm:p-10 rounded-2xl bg-slate-900/80 backdrop-blur-2xl border border-slate-800 shadow-2xl shadow-blue-950/40 text-center">
-        
+      {/* Main Glassmorphic Login Card */}
+      <div className="relative z-10 w-full max-w-md p-8 sm:p-10 rounded-2xl bg-slate-900/80 backdrop-blur-2xl border border-slate-800 shadow-2xl shadow-blue-950/40">
+
         {/* KSP Emblem & Brand Header */}
         <div className="flex flex-col items-center mb-8">
           <div className="relative mb-4 group">
@@ -26,40 +49,71 @@ export default function LoginPage() {
               className="relative h-20 w-auto drop-shadow-lg"
             />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
+          <h1 className="text-2xl font-extrabold tracking-tight text-white text-center">
             KARNATAKA STATE POLICE
           </h1>
-          <p className="text-xs font-semibold tracking-widest text-blue-400 uppercase mt-1">
+          <p className="text-xs font-semibold tracking-widest text-blue-400 uppercase mt-1 text-center">
             LUMINA CRIME INTELLIGENCE PORTAL
           </p>
         </div>
 
-        {/* Security Info Badge */}
-        <div className="mb-6 p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 text-left space-y-2">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
-            <span className="material-symbols-outlined text-blue-400 text-lg">verified_user</span>
-            <span>Zoho Catalyst Enterprise Single Sign-On</span>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="email" className="block text-xs font-semibold text-slate-400 mb-1.5">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-lg bg-slate-950/60 border border-slate-800 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+              placeholder="officer@ksp.gov.in"
+            />
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Authentication is required to access restricted crime databases, FIR investigations, and intelligence analytics.
-          </p>
+
+          <div>
+            <label htmlFor="password" className="block text-xs font-semibold text-slate-400 mb-1.5">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-lg bg-slate-950/60 border border-slate-800 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+              placeholder="••••••••"
+            />
+          </div>
+
+          {error && (
+            <p className="text-xs font-semibold text-red-400 bg-red-950/40 border border-red-900/60 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-3 cursor-pointer group"
+          >
+            <span className="material-symbols-outlined text-xl">shield</span>
+            <span>{submitting ? 'Signing In…' : 'Sign In'}</span>
+          </button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <Link to="/set-password" className="text-xs font-semibold text-blue-400 hover:text-blue-300">
+            First time signing in? Set your password
+          </Link>
         </div>
 
-        {/* Primary Action Button */}
-        <button
-          type="button"
-          onClick={login}
-          className="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-3 cursor-pointer group"
-        >
-          <span className="material-symbols-outlined text-xl">shield</span>
-          <span>Sign In with Zoho Catalyst SSO</span>
-          <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">
-            arrow_forward
-          </span>
-        </button>
-
         {/* Security Footer Note */}
-        <div className="mt-8 pt-6 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+        <div className="mt-6 pt-6 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
           <div className="flex items-center gap-1.5 text-emerald-400">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
             <span className="font-semibold">RESTRICTED ACCESS</span>

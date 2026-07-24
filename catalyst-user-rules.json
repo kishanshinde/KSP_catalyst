@@ -1,5 +1,17 @@
 [
   {
+    "name": "Crimeheatmap",
+    "source_endpoint": "/CrimeheatMap",
+    "target_endpoint": "/server/CrimeheatMap/",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000197774"
+  },
+  {
     "name": "authentication",
     "source_endpoint": "/authentication",
     "target_endpoint": "/server/authentication/",
@@ -9,7 +21,7 @@
       "overall": {},
       "ip": {}
     },
-    "target_id": "47024000000088099"
+    "target_id": "47024000000208001"
   },
   {
     "name": "getCurrentUser",
@@ -21,19 +33,10 @@
       "overall": {},
       "ip": {}
     },
-    "target_id": "47024000000088032"
-  },
-  {
-    "name": "generatePDF",
-    "source_endpoint": "/generatePDF",
-    "target_endpoint": "/server/generatePDF/",
-    "target": "advancedio",
-    "method": "ANY",
-    "throttling": {
-      "overall": {},
-      "ip": {}
-    },
-    "target_id": "47024000000032058"
+    "target_id": "47024000000088032",
+    "authentication": [
+      "CatalystUserManagement"
+    ]
   },
   {
     "name": "Query",
@@ -142,5 +145,17 @@
       "ip": {}
     },
     "target_id": "47024000000088060"
+  },
+  {
+    "name": "generatePDF",
+    "source_endpoint": "/generatePDF",
+    "target_endpoint": "/server/generatePDF/",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000032058"
   }
 ]

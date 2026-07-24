@@ -2,18 +2,26 @@ import { useState, useRef, useEffect } from 'react'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useAuth } from '../../contexts/AuthContext'
+import SupportModal from '../common/SupportModal'
+import NotificationDropdown from './NotificationDropdown'
 
 export default function Header() {
   const { t, language, setLanguage } = useLanguage()
   const { theme, toggleTheme } = useTheme()
   const { user, logout } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [supportOpen, setSupportOpen] = useState(false)
   const menuRef = useRef(null)
+  const notifRef = useRef(null)
 
   useEffect(() => {
     function handleClickOutside(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setMenuOpen(false)
+      }
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -80,22 +88,17 @@ export default function Header() {
           </button>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="relative" ref={notifRef}>
           <button
-            className="p-2.5 text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary transition-colors relative group"
-            title={t('header.themeToggle')}
-            onClick={toggleTheme}
-            aria-label={t('header.themeToggle')}
+            type="button"
+            onClick={() => setNotifOpen((prev) => !prev)}
+            className="p-2.5 text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary transition-colors relative"
+            aria-label={t('header.notifications')}
           >
-            <span className="material-symbols-outlined">
-              {theme === 'dark' ? 'light_mode' : 'dark_mode'}
-            </span>
-            <span className="absolute inset-0 bg-primary/10 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
-          </button>
-          <button className="p-2.5 text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary transition-colors relative" aria-label={t('header.notifications')}>
             <span className="material-symbols-outlined">notifications</span>
             <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-error rounded-full border-2 border-white dark:border-slate-900" />
           </button>
+          {notifOpen && <NotificationDropdown />}
         </div>
 
         <div className="h-8 w-px bg-outline-variant dark:bg-slate-700 mx-1" />
@@ -138,7 +141,31 @@ export default function Header() {
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 mt-1">
+              <div className="py-2 space-y-0.5 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className="w-full py-2 px-3 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-base">
+                    {theme === 'dark' ? 'light_mode' : 'dark_mode'}
+                  </span>
+                  <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    setSupportOpen(true)
+                  }}
+                  className="w-full py-2 px-3 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-base">help</span>
+                  <span>{t('sidebar.support')}</span>
+                </button>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => {
@@ -155,6 +182,8 @@ export default function Header() {
           )}
         </div>
       </div>
+
+      <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />
     </header>
   )
 }

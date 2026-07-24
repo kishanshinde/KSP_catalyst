@@ -14,6 +14,7 @@ const API_GATEWAY_ENDPOINTS = [
   '/deleteConversation',
   '/CrimeTrends',
   '/RecentCases',
+  '/CrimeheatMap',
 ]
 
 // https://vitejs.dev/config/

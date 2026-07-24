@@ -71,7 +71,7 @@ async function processAndSave(body, req, res, resolve) {
         const zcql = catalystApp.zcql();
 
         // Resolve the logged-in user's Datastore row (users table)
-        const resolved = await resolveUserRow(catalystApp);
+        const resolved = await resolveUserRow(catalystApp, req);
         if (!resolved) {
             setCorsHeaders(res);
             res.writeHead(401, { "Content-Type": "application/json" });

@@ -2,7 +2,6 @@
   "functions": {
     "targets": [
       "ai-chat",
-      "test-llm",
       "chat-intent",
       "dashboardAggregation",
       "getConversation",
@@ -18,7 +17,8 @@
       "CrimeTrends",
       "RecentCases",
       "authentication",
-      "syncCrimeMLFeatures"
+      "syncCrimeMLFeatures",
+      "CrimeheatMap"
     ],
     "ignore": [],
     "source": "functions"

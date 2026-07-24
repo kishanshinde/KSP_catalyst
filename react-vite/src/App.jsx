@@ -9,6 +9,8 @@ import HomePage from './pages/HomePage'
 import WorkspacePage from './pages/WorkspacePage'
 import ErrorBoundary from './components/common/ErrorBoundary'
 import ProtectedRoute from './components/common/ProtectedRoute'
+import LoginPage from './components/auth/LoginPage'
+import SetInitialPasswordPage from './components/auth/SetInitialPasswordPage'
 
 function PlaceholderPage({ titleKey }) {
   const { t } = useLanguage()
@@ -19,36 +21,47 @@ function PlaceholderPage({ titleKey }) {
   )
 }
 
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/set-password" element={<SetInitialPasswordPage />} />
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <SidebarProvider>
+              <ChatProvider>
+                <MainLayout>
+                  <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/chat/:id" element={<ErrorBoundary><WorkspacePage /></ErrorBoundary>} />
+                    <Route
+                      path="/analytics"
+                      element={<PlaceholderPage titleKey="page.analytics" />}
+                    />
+                    <Route
+                      path="/reports"
+                      element={<PlaceholderPage titleKey="page.reports" />}
+                    />
+                  </Routes>
+                </MainLayout>
+              </ChatProvider>
+            </SidebarProvider>
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
+  )
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
         <LanguageProvider>
           <AuthProvider>
-            <ProtectedRoute>
-              <SidebarProvider>
-                <ChatProvider>
-                  <MainLayout>
-                    <Routes>
-                      <Route path="/" element={<HomePage />} />
-                      <Route path="/chat/:id" element={<ErrorBoundary><WorkspacePage /></ErrorBoundary>} />
-                      <Route
-                        path="/analytics"
-                        element={<PlaceholderPage titleKey="page.analytics" />}
-                      />
-                      <Route
-                        path="/reports"
-                        element={<PlaceholderPage titleKey="page.reports" />}
-                      />
-                      <Route
-                        path="/settings"
-                        element={<PlaceholderPage titleKey="page.settings" />}
-                      />
-                    </Routes>
-                  </MainLayout>
-                </ChatProvider>
-              </SidebarProvider>
-            </ProtectedRoute>
+            <AppRoutes />
           </AuthProvider>
         </LanguageProvider>
       </ThemeProvider>

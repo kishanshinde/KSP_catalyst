@@ -8,7 +8,6 @@ import { useSidebar } from '../../contexts/SidebarContext'
 import SidebarToggle from './SidebarToggle'
 import SidebarHeader from './SidebarHeader'
 import SidebarNavigation from './SidebarNavigation'
-import SidebarFooter from './SidebarFooter'
 import Modal from '../common/Modal'
 import Button from '../common/Button'
 import Dropdown from '../common/Dropdown'
@@ -254,8 +253,6 @@ export default function Sidebar() {
             </div>
           )}
         </div>
-
-        <SidebarFooter />
       </div>
     </aside>
   )

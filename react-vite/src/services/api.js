@@ -1,4 +1,5 @@
 import { mockDashboardResponse } from './mockData'
+import { getAuthHeader } from './catalystAuth'
 
 const USE_MOCK = false
 
@@ -26,11 +27,13 @@ async function requestGet(endpoint, params, options = {}) {
     : controller.signal
 
   try {
+    const authHeader = await getAuthHeader()
     const response = await fetch(`${API_BASE}${endpoint}${query}`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
         'Cache-Control': 'no-cache',
+        ...authHeader,
       },
       credentials: 'include',
       cache: 'no-store',
@@ -85,12 +88,14 @@ async function request(endpoint, body, options = {}) {
     : controller.signal
 
   try {
+    const authHeader = await getAuthHeader()
     const response = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
+        ...authHeader,
       },
       credentials: 'include',
       cache: 'no-store',
@@ -142,12 +147,14 @@ async function requestBlob(endpoint, body, options = {}) {
     : controller.signal
 
   try {
+    const authHeader = await getAuthHeader()
     const response = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
       headers: {
         Accept: 'application/pdf,application/json',
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
+        ...authHeader,
       },
       credentials: 'include',
       cache: 'no-store',
@@ -389,6 +396,46 @@ export const api = {
       })
     }
     return requestGet('/RecentCases', null, options)
+  },
+
+  getCrimeHeatmap(options = {}) {
+    if (USE_MOCK) {
+      return Promise.resolve({
+        success: true,
+        totalLocations: 2,
+        totalCases: 3,
+        locations: [
+          {
+            id: 'mock_loc_1',
+            district: 'Bengaluru Urban',
+            taluk: 'Bengaluru East',
+            city: 'Indiranagar',
+            pincode: '560038',
+            lat: 12.9716,
+            lng: 77.6412,
+            caseCount: 2,
+            cases: [
+              { firNumber: 'FIR-2026-0012', status: 'Open', statusColor: '#10B981', priority: 'High', priorityColor: '#F97316', dateRegistered: '14 Apr 2026' },
+              { firNumber: 'FIR-2026-0045', status: 'Under Investigation', statusColor: '#F59E0B', priority: 'Critical', priorityColor: '#DC2626', dateRegistered: '10 Apr 2026' },
+            ],
+          },
+          {
+            id: 'mock_loc_2',
+            district: 'Mysuru',
+            taluk: 'Mysuru North',
+            city: 'Mysuru',
+            pincode: '570001',
+            lat: 12.2958,
+            lng: 76.6394,
+            caseCount: 1,
+            cases: [
+              { firNumber: 'FIR-2026-0089', status: 'Registered', statusColor: '#3B82F6', priority: 'Medium', priorityColor: '#EAB308', dateRegistered: '05 Apr 2026' },
+            ],
+          },
+        ],
+      })
+    }
+    return requestGet('/CrimeheatMap', null, options)
   },
 
   async generateCrimeTrendsReport(data) {

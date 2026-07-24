@@ -699,7 +699,7 @@ module.exports = async (req, res) => {
             const zcql = app.zcql();
 
             // Resolve the logged-in user's Datastore row (users table)
-            const resolvedUser = await resolveUserRow(app);
+            const resolvedUser = await resolveUserRow(app, req);
             if (!resolvedUser) {
                 res.writeHead(401, { 'Content-Type': 'application/json' });
                 return res.end(JSON.stringify({
@@ -781,7 +781,8 @@ module.exports = async (req, res) => {
                 response: finalResponse.response || 'No response generated',
                 intent: intentResult,
                 data_count: queryResult.length || 0,
-                language: originalLanguage
+                language: originalLanguage,
+                llmToken: LLM_TOKEN
             });
 
             const savedConversationId = saveResult?.conversationId || null;
@@ -789,7 +790,7 @@ module.exports = async (req, res) => {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: true,
-                conversation: { id: savedConversationId },
+                conversation: { id: savedConversationId, title: saveResult?.title || null },
                 intent: intentResult,
                 response: finalResponse.response || 'No response generated',
                 raw_data: queryResult,
@@ -1411,6 +1412,85 @@ function safeString(value) {
 }
 
 // ============================================================
+// HELPER: Generate Conversation Title (LLM summary, best-effort)
+// ============================================================
+
+function generateTitleWithLLM(question, response, token) {
+    return new Promise((resolve) => {
+        const fallback = String(question || 'New Investigation').substring(0, 50);
+
+        if (!token || !question) {
+            resolve(fallback);
+            return;
+        }
+
+        const systemPrompt = `You summarize the start of a police case-intelligence chat into a short title.
+
+IMPORTANT RULES:
+1. Return ONLY the title text, nothing else — no quotes, no punctuation at the end, no explanations.
+2. Keep it to 4-8 words.
+3. Summarize what the conversation is about, not a generic phrase like "New Chat".
+4. Use the same language as the question.`;
+
+        const userPrompt = `Question: ${String(question).slice(0, 500)}\n\nAnswer: ${String(response || '').slice(0, 500)}\n\nTitle:`;
+
+        const payload = JSON.stringify({
+            model: "crm-di-glm47b_30b_it",
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
+            ],
+            max_tokens: 30,
+            temperature: 0.3,
+            stream: false,
+            chat_template_kwargs: {
+                enable_thinking: false
+            }
+        });
+
+        const options = {
+            hostname: 'api.catalyst.zoho.in',
+            path: '/quickml/v1/project/47024000000013051/glm/chat',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Zoho-oauthtoken ${token}`,
+                'CATALYST-ORG': '60073436832',
+                'Content-Length': Buffer.byteLength(payload)
+            }
+        };
+
+        const request = https.request(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+                try {
+                    if (res.statusCode !== 200) {
+                        console.warn('[generateTitleWithLLM] API Error:', res.statusCode);
+                        return resolve(fallback);
+                    }
+                    const parsed = JSON.parse(data);
+                    let title = parsed.choices?.[0]?.message?.content || '';
+                    title = title.replace(/^["'\s]+|["'\s.]+$/g, '').trim();
+                    resolve(title.length > 0 ? title.slice(0, 80) : fallback);
+                } catch (err) {
+                    console.warn('[generateTitleWithLLM] Parse Error:', err.message);
+                    resolve(fallback);
+                }
+            });
+        });
+
+        request.on('error', (err) => {
+            console.warn('[generateTitleWithLLM] Request Error:', err.message);
+            resolve(fallback);
+        });
+
+        request.write(payload);
+        request.end();
+    });
+}
+
+// ============================================================
 // HELPER: Save Conversation
 // ============================================================
 
@@ -1464,37 +1544,39 @@ function saveConversationDirect(zcql, data) {
                 // INSERT new conversation
                 const conversation = JSON.stringify(newExchange);
 
-                const query = `
-                    INSERT INTO conversation_history (
-                        user_rowid,
-                        conversation_title,
-                        conversation,
-                        question,
-                        response,
-                        language,
-                        created_at
-                    ) VALUES (
-                        '${user_rowid}',
-                        '${safeString(data.question.substring(0, 50))}',
-                        '${safeString(conversation)}',
-                        '${safeString(data.question)}',
-                        '${safeString(data.response)}',
-                        '${data.language || 'en'}',
-                        '${timestamp}'
-                    )
-                `;
+                generateTitleWithLLM(data.question, data.response, data.llmToken).then((title) => {
+                    const query = `
+                        INSERT INTO conversation_history (
+                            user_rowid,
+                            conversation_title,
+                            conversation,
+                            question,
+                            response,
+                            language,
+                            created_at
+                        ) VALUES (
+                            '${user_rowid}',
+                            '${safeString(title)}',
+                            '${safeString(conversation)}',
+                            '${safeString(data.question)}',
+                            '${safeString(data.response)}',
+                            '${data.language || 'en'}',
+                            '${timestamp}'
+                        )
+                    `;
 
-                zcql.executeZCQLQuery(query).then((result) => {
-                    console.log('[ai-chat] ✅ Conversation saved successfully');
-                    let insertedId = null;
-                    if (result && result.length > 0) {
-                        const row = result[0].conversation_history || result[0];
-                        insertedId = row.ROWID || null;
-                    }
-                    resolve({ conversationId: insertedId });
+                    return zcql.executeZCQLQuery(query).then((result) => {
+                        console.log('[ai-chat] ✅ Conversation saved successfully');
+                        let insertedId = null;
+                        if (result && result.length > 0) {
+                            const row = result[0].conversation_history || result[0];
+                            insertedId = row.ROWID || null;
+                        }
+                        resolve({ conversationId: insertedId, title });
+                    });
                 }).catch((err) => {
                     console.error('[ai-chat] ❌ Failed to save conversation:', err);
-                    resolve({ conversationId: null });
+                    resolve({ conversationId: null, title: null });
                 });
             }
         } catch (err) {

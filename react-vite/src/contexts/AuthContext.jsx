@@ -1,35 +1,44 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { getAuthHeader, getSessionToken, setSessionToken, clearSessionToken } from '../services/catalystAuth'
 
 const AuthContext = createContext(null)
-const LOCAL_STORAGE_KEY = 'ksp_lumina_auth_user'
+export const POST_LOGIN_REDIRECT_KEY = 'ksp_lumina_post_login_redirect'
 
-function getCatalystAuth() {
-  return window.catalyst?.auth ?? null
+const API_BASE = import.meta.env.VITE_API_URL || ''
+
+async function postAuthAction(action, body, authHeader = {}) {
+  const response = await fetch(`${API_BASE}/authentication`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeader },
+    body: JSON.stringify({ action, ...body }),
+  })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok || payload?.success === false) {
+    throw new Error(payload?.message || 'Request failed. Please try again.')
+  }
+  return payload
 }
 
 async function fetchCurrentUser() {
-  // Try API Gateway endpoint /getCurrentUser
+  if (!getSessionToken()) return null
+
   try {
-    let response = await fetch('/server/getCurrentUser', {
-      headers: { Accept: 'application/json' },
-      credentials: 'include',
+    const authHeader = await getAuthHeader()
+    const response = await fetch(`${API_BASE}/getCurrentUser`, {
+      headers: { Accept: 'application/json', ...authHeader },
       cache: 'no-store',
     })
-
-    if (!response.ok && response.status === 404) {
-      response = await fetch('/server/getCurrentUser/', {
-        headers: { Accept: 'application/json' },
-        credentials: 'include',
-        cache: 'no-store',
-      })
-    }
 
     if (response.ok) {
       const payload = await response.json()
       if (payload?.user) {
         return payload.user
       }
+    }
+
+    if (response.status === 401) {
+      clearSessionToken()
     }
   } catch (err) {
     console.warn('[AuthContext] Session check error:', err.message)
@@ -63,72 +72,33 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const login = useCallback(() => {
-    const loginUrl =
-      import.meta.env.VITE_AUTH_LOGIN_URL ||
-      import.meta.env.VITE_CATALYST_LOGIN_URL ||
-      `https://${import.meta.env.VITE_CATALYST_DOMAIN || 'techsonic-crime-intelligence-60073436832.development'}.catalystserverless.in/__catalyst/auth/login`
-
-    window.location.href = loginUrl
-  }, [])
-
-  const devLogin = useCallback(async ({ badgeId, name, role }) => {
-    try {
-      // Try posting to /server/authentication/
-      const res = await fetch('/server/authentication/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', badgeId, name, role }),
-      })
-      if (res.ok) {
-        const payload = await res.json()
-        if (payload?.user) {
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload.user))
-          setUser(payload.user)
-          return payload.user
-        }
-      }
-    } catch (err) {
-      console.warn('[Auth] devLogin backend call failed, falling back to local session:', err.message)
-    }
-
-    // Fallback officer profile creation
-    const officerName = name?.trim() || 'Officer'
-    const nameParts = officerName.split(' ')
-    const officerUser = {
-      user_id: badgeId || `KSP_${Math.floor(100000 + Math.random() * 900000)}`,
-      zuid: `DEV_${Date.now()}`,
-      first_name: nameParts[0] || 'Officer',
-      last_name: nameParts.slice(1).join(' ') || 'KSP',
-      email: `${(badgeId || 'officer').toLowerCase()}@ksp.gov.in`,
-      role: role || 'Senior Officer (CID)',
-      app_role: role || 'Senior Officer (CID)',
-      status: 'ACTIVE',
-      confirmed: true,
-    }
-
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(officerUser))
-    setUser(officerUser)
-    return officerUser
+  const login = useCallback(async (email, password) => {
+    const payload = await postAuthAction('login', { email, password })
+    setSessionToken(payload.session_token)
+    setUser(payload.user)
+    return payload.user
   }, [])
 
   const logout = useCallback(async () => {
     try {
-      localStorage.removeItem(LOCAL_STORAGE_KEY)
-      const auth = getCatalystAuth()
-      if (auth && typeof auth.sign_out === 'function') {
-        await auth.sign_out()
-      }
-      setUser(null)
+      const authHeader = await getAuthHeader()
+      await postAuthAction('logout', {}, authHeader)
     } catch (err) {
-      console.error('[Auth] Sign-out failed:', err)
+      console.warn('[Auth] Logout request failed:', err.message)
+    } finally {
+      clearSessionToken()
       setUser(null)
     }
   }, [])
 
+  const setInitialPassword = useCallback(async (email, newPassword) => {
+    const payload = await postAuthAction('set-initial-password', { email, newPassword })
+    return payload.message
+  }, [])
+
   const value = useMemo(
-    () => ({ user, loading, login, devLogin, logout }),
-    [user, loading, login, devLogin, logout]
+    () => ({ user, loading, login, logout, setInitialPassword }),
+    [user, loading, login, logout, setInitialPassword]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
