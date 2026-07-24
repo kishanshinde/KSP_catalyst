@@ -73,16 +73,29 @@ export default function NetworkGraph({ data, onNodeSelect }) {
   }, [graphData, filters, searchQuery])
 
   const highlightedIds = useMemo(() => {
-    if (!selectedNode || !graphData?.edges) return null
+    if (!selectedNode) return null
     const ids = new Set([selectedNode.id])
-    for (const e of graphData.edges) {
-      const src = e.source?.id || e.source
-      const tgt = e.target?.id || e.target
-      if (src === selectedNode.id) ids.add(tgt)
-      if (tgt === selectedNode.id) ids.add(src)
+    
+    // Highlight synthetic tree edges
+    if (edgesRef.current) {
+        for (const e of edgesRef.current) {
+          const src = e.source?.id || e.source
+          const tgt = e.target?.id || e.target
+          if (src === selectedNode.id) ids.add(tgt)
+          if (tgt === selectedNode.id) ids.add(src)
+        }
+    }
+    // Highlight true data connections
+    if (graphData?.edges) {
+        for (const e of graphData.edges) {
+          const src = e.source?.id || e.source
+          const tgt = e.target?.id || e.target
+          if (src === selectedNode.id) ids.add(tgt)
+          if (tgt === selectedNode.id) ids.add(src)
+        }
     }
     return ids
-  }, [selectedNode, graphData])
+  }, [selectedNode, graphData, filteredData, dimensions])
 
   useEffect(() => {
     const container = containerRef.current
@@ -100,29 +113,87 @@ export default function NetworkGraph({ data, onNodeSelect }) {
   useEffect(() => {
     const cx = dimensions.width / 2
     const cy = dimensions.height / 2
-    const existingMap = new Map(nodesRef.current.map(n => [n.id, n]))
-    const nodeCount = filteredData.nodes.length
-    const spread = Math.max(400, Math.sqrt(nodeCount) * 40)
-    nodesRef.current = filteredData.nodes.map(n => {
-      const existing = existingMap.get(n.id)
-      return {
-        ...n,
-        x: existing?.x ?? cx + (Math.random() - 0.5) * spread,
-        y: existing?.y ?? cy + (Math.random() - 0.5) * spread,
-        vx: existing?.vx ?? 0,
-        vy: existing?.vy ?? 0,
-        r: getNodeRadius(n),
-        color: n.type === 'central' ? TYPE_COLORS.central : TYPE_COLORS[n.type] || '#6B7280',
-      }
-    })
-    edgesRef.current = filteredData.edges.map(e => ({
-      ...e,
-      source: e.source?.id || e.source,
-      target: e.target?.id || e.target,
-      color: EDGE_COLORS[e.type] || '#FFFFFF',
-      width: e.type === 'CO_ACCUSED' ? 3 : 2,
-    }))
-    simAlphaRef.current = 1
+    
+    const centralNode = filteredData.nodes.find(n => n.type === 'central')
+    
+    const hubs = [
+      { id: 'hub_accused', label: 'Accused', type: 'accused', isHub: true, color: TYPE_COLORS.accused, x: cx, y: cy - 160 },
+      { id: 'hub_associates', label: 'Victims & MOs', type: 'victim', isHub: true, color: TYPE_COLORS.victim, x: cx, y: cy + 160 },
+      { id: 'hub_fir', label: 'FIRs', type: 'fir', isHub: true, color: TYPE_COLORS.fir, x: cx - 220, y: cy },
+      { id: 'hub_location', label: 'Locations', type: 'location', isHub: true, color: TYPE_COLORS.location, x: cx + 220, y: cy },
+    ]
+    
+    let processedNodes = []
+    let processedEdges = []
+    
+    if (centralNode) {
+       centralNode.x = cx
+       centralNode.y = cy
+       centralNode.r = getNodeRadius(centralNode)
+       centralNode.color = TYPE_COLORS.central
+       centralNode.vx = 0
+       centralNode.vy = 0
+       processedNodes.push(centralNode)
+       
+       const categorized = { accused: [], fir: [], location: [], victim: [], mo: [], other: [] }
+       
+       filteredData.nodes.forEach(n => {
+         if (n.id === centralNode.id) return
+         if (n.type === 'accused') categorized.accused.push(n)
+         else if (n.type === 'fir') categorized.fir.push(n)
+         else if (n.type === 'location') categorized.location.push(n)
+         else if (n.type === 'victim') categorized.victim.push(n)
+         else if (n.type === 'mo') categorized.mo.push(n)
+         else categorized.other.push(n)
+       })
+       
+       const addHub = (hub, leaves, axis, sign, spreadAxis) => {
+           if (leaves.length === 0) return
+           hub.r = 22
+           hub.vx = 0
+           hub.vy = 0
+           processedNodes.push(hub)
+           processedEdges.push({ source: centralNode.id, target: hub.id, type: 'HUB_LINK', color: '#6B7280', width: 2 })
+           
+           const gap = 80
+           const layerDist = 140
+           const totalSpread = (leaves.length - 1) * gap
+           let start = hub[spreadAxis] - totalSpread / 2
+           
+           leaves.forEach((leaf, i) => {
+               if (axis === 'y') {
+                   leaf.x = start + i * gap
+                   leaf.y = hub.y + (sign * layerDist)
+               } else {
+                   leaf.x = hub.x + (sign * layerDist)
+                   leaf.y = start + i * gap
+               }
+               leaf.vx = 0
+               leaf.vy = 0
+               leaf.r = getNodeRadius(leaf)
+               leaf.color = TYPE_COLORS[leaf.type] || '#6B7280'
+               processedNodes.push(leaf)
+               processedEdges.push({ source: hub.id, target: leaf.id, type: 'LEAF_LINK', color: leaf.color, width: 1.5 })
+           })
+       }
+       
+       addHub(hubs[0], categorized.accused, 'y', -1, 'x')
+       addHub(hubs[1], [...categorized.victim, ...categorized.mo, ...categorized.other], 'y', 1, 'x')
+       addHub(hubs[2], categorized.fir, 'x', -1, 'y')
+       addHub(hubs[3], categorized.location, 'x', 1, 'y')
+       
+       // Optionally add the original edges so they exist in edgesRef for highlights?
+       // Let's only render the tree for a clean grid layout. The true connections will still show in the right panel.
+    } else {
+       processedNodes = filteredData.nodes.map(n => ({
+           ...n, x: cx + (Math.random()-0.5)*300, y: cy + (Math.random()-0.5)*300, vx: 0, vy: 0, r: getNodeRadius(n), color: TYPE_COLORS[n.type] || '#6B7280'
+       }))
+       processedEdges = filteredData.edges
+    }
+    
+    nodesRef.current = processedNodes
+    edgesRef.current = processedEdges
+    simAlphaRef.current = 0
   }, [filteredData, dimensions])
 
   useEffect(() => {
@@ -152,56 +223,8 @@ export default function NetworkGraph({ data, onNodeSelect }) {
       const nodeMap = new Map(nodes.map(n => [n.id, n]))
 
       if (alpha > 0.001) {
-        for (let i = 0; i < nodes.length; i++) {
-          for (let j = i + 1; j < nodes.length; j++) {
-            let dx = nodes[j].x - nodes[i].x
-            let dy = nodes[j].y - nodes[i].y
-            let dist = Math.sqrt(dx * dx + dy * dy) || 1
-            const minDist = (nodes[i].r + nodes[j].r) * 2.5
-            if (dist < minDist) {
-              const force = (minDist - dist) / dist * 0.7 * alpha
-              nodes[i].vx -= dx * force
-              nodes[i].vy -= dy * force
-              nodes[j].vx += dx * force
-              nodes[j].vy += dy * force
-            }
-          }
-        }
-
-        for (const e of edges) {
-          const s = nodeMap.get(e.source)
-          const t = nodeMap.get(e.target)
-          if (!s || !t) continue
-          let dx = t.x - s.x
-          let dy = t.y - s.y
-          let dist = Math.sqrt(dx * dx + dy * dy) || 1
-          const idealDist = e.type === 'CO_ACCUSED' ? 140 : e.type === 'ACCUSED_OF' ? 180 : 200
-          const force = (dist - idealDist) / dist * 0.08 * alpha
-          s.vx += dx * force
-          s.vy += dy * force
-          t.vx -= dx * force
-          t.vy -= dy * force
-        }
-
-        for (const n of nodes) {
-          n.vx += (width / 2 - n.x) * 0.002 * alpha
-          n.vy += (height / 2 - n.y) * 0.002 * alpha
-          const charge = (n.type === 'central' ? -800 : n.type === 'accused' ? -400 : -200) * alpha
-          for (const m of nodes) {
-            if (m === n) continue
-            let dx = n.x - m.x
-            let dy = n.y - m.y
-            let dist = Math.sqrt(dx * dx + dy * dy) || 1
-            const force = charge / (dist * dist)
-            n.vx += (dx / dist) * force
-            n.vy += (dy / dist) * force
-          }
-        }
-
         for (const n of nodes) {
           if (dragRef.current?.id === n.id) continue
-          n.vx *= 0.6
-          n.vy *= 0.6
           n.x += n.vx
           n.y += n.vy
         }
@@ -213,29 +236,61 @@ export default function NetworkGraph({ data, onNodeSelect }) {
         const t = nodeMap.get(e.target)
         if (!s || !t) continue
         const sx = s.x, sy = s.y, tx = t.x, ty = t.y
-        const dx = tx - sx, dy = ty - sy
         const dimmed = highlightedIds && !highlightedIds.has(e.source) && !highlightedIds.has(e.target)
         const weight = e.weight || 1
         const wAlpha = 0.5 + weight * 0.17
 
         ctx.beginPath()
-        const curve = 0.15
-        const mx = (sx + tx) / 2 + dy * curve
-        const my = (sy + ty) / 2 - dx * curve
-        ctx.moveTo(sx, sy)
-        ctx.quadraticCurveTo(mx, my, tx, ty)
+        let midX = sx, midY = sy
+        
+        if (Math.abs(sx - tx) < 1 || Math.abs(sy - ty) < 1) {
+            ctx.moveTo(sx, sy)
+            ctx.lineTo(tx, ty)
+        } else {
+            if (Math.abs(ty - sy) > Math.abs(tx - sx)) {
+                midY = (sy + ty) / 2
+                ctx.moveTo(sx, sy)
+                ctx.lineTo(sx, midY)
+                ctx.lineTo(tx, midY)
+                ctx.lineTo(tx, ty)
+            } else {
+                midX = (sx + tx) / 2
+                ctx.moveTo(sx, sy)
+                ctx.lineTo(midX, sy)
+                ctx.lineTo(midX, ty)
+                ctx.lineTo(tx, ty)
+            }
+        }
+        
         ctx.strokeStyle = e.color || '#FFFFFF'
         ctx.globalAlpha = dimmed ? 0.08 : wAlpha
         ctx.lineWidth = (e.width || 2) * (0.7 + weight * 0.3)
         ctx.stroke()
 
-        const angle = Math.atan2(dy, dx)
-        const aLen = 10
+        const r = t.r + 4
+        let arrowDx = 0, arrowDy = 0
+        if (Math.abs(sx - tx) < 1 || Math.abs(sy - ty) < 1) {
+            arrowDx = tx - sx
+            arrowDy = ty - sy
+        } else {
+            if (Math.abs(ty - sy) > Math.abs(tx - sx)) {
+                arrowDx = 0
+                arrowDy = ty - midY
+            } else {
+                arrowDx = tx - midX
+                arrowDy = 0
+            }
+        }
+        const angle = Math.atan2(arrowDy, arrowDx)
+        const edgeTx = tx - Math.cos(angle) * r
+        const edgeTy = ty - Math.sin(angle) * r
+        
+        const aLen = 8
         ctx.beginPath()
-        ctx.moveTo(tx, ty)
-        ctx.lineTo(tx - aLen * Math.cos(angle - 0.45), ty - aLen * Math.sin(angle - 0.45))
-        ctx.moveTo(tx, ty)
-        ctx.lineTo(tx - aLen * Math.cos(angle + 0.45), ty - aLen * Math.sin(angle + 0.45))
+        ctx.moveTo(edgeTx, edgeTy)
+        ctx.lineTo(edgeTx - aLen * Math.cos(angle - 0.45), edgeTy - aLen * Math.sin(angle - 0.45))
+        ctx.moveTo(edgeTx, edgeTy)
+        ctx.lineTo(edgeTx - aLen * Math.cos(angle + 0.45), edgeTy - aLen * Math.sin(angle + 0.45))
         ctx.globalAlpha = dimmed ? 0.08 : 0.8
         ctx.lineWidth = 2
         ctx.stroke()

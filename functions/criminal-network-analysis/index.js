@@ -100,16 +100,16 @@ function safeString(value) {
 
 async function getFullNetwork(zcql, params = {}) {
     const accusedRows = await zcql.executeZCQLQuery(
-        `SELECT ROWID, full_name, gender, occupation, risk_score, is_repeat_offender FROM accused`
+        `SELECT ROWID, full_name, gender, dob, occupation, address, phone_number, aadhaar_masked, risk_score, is_repeat_offender FROM accused`
     );
 
     const victimRows = await zcql.executeZCQLQuery(
-        `SELECT ROWID, full_name, gender, occupation FROM victim`
+        `SELECT ROWID, full_name, gender, dob, occupation, address, phone_number FROM victim`
     );
 
     const firRows = await zcql.executeZCQLQuery(
-        `SELECT f.ROWID, f.fir_number, f.status, f.date_registered, f.priorites,
-                l.city, l.district, l.latitude, l.longitude, c.crime_name, c.parent_category
+        `SELECT f.ROWID, f.fir_number, f.status, f.date_registered, f.priorites, f.description, f.investigating_officer,
+                l.city, l.district, l.taluk, l.pincode, l.latitude, l.longitude, c.crime_name, c.parent_category, c.severity_score
          FROM fir f
          LEFT JOIN location l ON l.ROWID = f.location_rowid
          LEFT JOIN crime_type_master c ON c.ROWID = f.crime_type_rowid`
@@ -151,7 +151,11 @@ async function getFullNetwork(zcql, params = {}) {
             risk_score: Number(a.risk_score || 0),
             is_repeat_offender: a.is_repeat_offender || false,
             gender: a.gender || 'Unknown',
+            dob: a.dob || 'Unknown',
             occupation: a.occupation || 'Unknown',
+            address: a.address || 'Unknown',
+            phone_number: a.phone_number || 'Unknown',
+            aadhaar_masked: a.aadhaar_masked || 'Unknown',
             communityId: null,
         };
         nodes.push(node);
@@ -166,7 +170,10 @@ async function getFullNetwork(zcql, params = {}) {
             label: v.full_name,
             type: 'victim',
             gender: v.gender || 'Unknown',
+            dob: v.dob || 'Unknown',
             occupation: v.occupation || 'Unknown',
+            address: v.address || 'Unknown',
+            phone_number: v.phone_number || 'Unknown',
             communityId: null,
         };
         nodes.push(node);
@@ -184,8 +191,11 @@ async function getFullNetwork(zcql, params = {}) {
             type: 'fir',
             status: f.status || 'Unknown',
             date_registered: f.date_registered || null,
+            description: f.description || '',
+            investigating_officer: f.investigating_officer || 'Unknown',
             crime_name: crime.crime_name || 'Unknown',
             parent_category: crime.parent_category || 'Unknown',
+            severity_score: crime.severity_score || null,
             city: loc.city || 'Unknown',
             district: loc.district || 'Unknown',
             priority: f.priorites || 'Unknown',
@@ -209,6 +219,8 @@ async function getFullNetwork(zcql, params = {}) {
                 label: locKey,
                 type: 'location',
                 district: district || 'Unknown',
+                taluk: loc.taluk || 'Unknown',
+                pincode: loc.pincode || 'Unknown',
                 latitude: loc.latitude || null,
                 longitude: loc.longitude || null,
                 fir_count: 0,
@@ -374,10 +386,22 @@ async function getFullNetwork(zcql, params = {}) {
         let centerNode = null;
 
         if (params.search_type === 'name') {
-            centerNode = nodes.find(n =>
+            const matches = nodes.filter(n =>
                 (n.type === 'accused' || n.type === 'victim') &&
                 n.label.toLowerCase().includes(query)
             );
+            if (matches.length > 0) {
+                centerNode = matches[0];
+                for (let i = 1; i < matches.length; i++) {
+                    const other = matches[i];
+                    for (const edge of edges) {
+                        if (edge.source === other.id) edge.source = centerNode.id;
+                        if (edge.target === other.id) edge.target = centerNode.id;
+                    }
+                    const idx = nodes.findIndex(n => n.id === other.id);
+                    if (idx > -1) nodes.splice(idx, 1);
+                }
+            }
         } else if (params.search_type === 'fir_number') {
             centerNode = nodes.find(n =>
                 n.type === 'fir' &&
@@ -393,16 +417,11 @@ async function getFullNetwork(zcql, params = {}) {
         if (centerNode) {
             centerNode.type = 'central';
 
-            // Auto-adaptive depth
-            const directEdges = edges.filter(e =>
-                e.source === centerNode.id || e.target === centerNode.id
-            ).length;
-
             let depth;
             if (params.depth) {
                 depth = Number(params.depth);
             } else {
-                depth = directEdges > 10 ? 2 : 3;
+                depth = 2; // Default to depth 2 to reach Locations, Victims, and MOs via FIRs
             }
 
             const reachable = bfsReachable(centerNode.id, edges, depth);
@@ -418,10 +437,22 @@ async function getFullNetwork(zcql, params = {}) {
     // Legacy support: accused_name focus
     if (params.accused_name) {
         const name = params.accused_name.toLowerCase();
-        const central = nodes.find(n => n.type === 'accused' && n.label.toLowerCase().includes(name));
-        if (central) {
+        const matches = nodes.filter(n => n.type === 'accused' && n.label.toLowerCase().includes(name));
+        if (matches.length > 0) {
+            const central = matches[0];
             central.type = 'central';
-            const depth = params.depth || 2;
+            
+            for (let i = 1; i < matches.length; i++) {
+                const other = matches[i];
+                for (const edge of edges) {
+                    if (edge.source === other.id) edge.source = central.id;
+                    if (edge.target === other.id) edge.target = central.id;
+                }
+                const idx = nodes.findIndex(n => n.id === other.id);
+                if (idx > -1) nodes.splice(idx, 1);
+            }
+
+            const depth = params.depth || 2; // Depth 2 to reach Locations, Victims, MOs
             const reachable = bfsReachable(central.id, edges, depth);
             const filteredNodes = nodes.filter(n => reachable.has(n.id) || n.id === central.id);
             const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
@@ -528,6 +559,11 @@ function computeCompositeScoreSimple(node, degreeMap) {
 function bfsReachable(startId, edges, maxDepth) {
     const adj = new Map();
     for (const e of edges) {
+        // Skip weak/broad edges that bloat the BFS
+        if (e.type === 'SHARED_LOCATION') continue; 
+        // Skip direct co-accused edges to prevent BFS from reaching their other FIRs
+        if (e.type === 'CO_ACCUSED') continue;
+        
         if (!adj.has(e.source)) adj.set(e.source, []);
         if (!adj.has(e.target)) adj.set(e.target, []);
         adj.get(e.source).push(e.target);
