@@ -1,5 +1,32 @@
 [
   {
+    "name": "getCurrentUser",
+    "source_endpoint": "/getCurrentUser",
+    "target_endpoint": "/server/getCurrentUser/",
+    "target": "advancedio",
+    "method": "GET",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000088032",
+    "authentication": [
+      "CatalystUserManagement"
+    ]
+  },
+  {
+    "name": "criminal-network-analysis",
+    "source_endpoint": "/criminal-network-analysis",
+    "target_endpoint": "/server/criminal-network-analysis/",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    },
+    "target_id": "47024000000177004"
+  },
+  {
     "name": "Crimeheatmap",
     "source_endpoint": "/CrimeheatMap",
     "target_endpoint": "/server/CrimeheatMap/",
@@ -22,21 +49,6 @@
       "ip": {}
     },
     "target_id": "47024000000208001"
-  },
-  {
-    "name": "getCurrentUser",
-    "source_endpoint": "/getCurrentUser",
-    "target_endpoint": "/server/getCurrentUser/",
-    "target": "advancedio",
-    "method": "GET",
-    "throttling": {
-      "overall": {},
-      "ip": {}
-    },
-    "target_id": "47024000000088032",
-    "authentication": [
-      "CatalystUserManagement"
-    ]
   },
   {
     "name": "Query",

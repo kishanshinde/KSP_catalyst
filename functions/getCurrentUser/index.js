@@ -8,7 +8,7 @@ function setCorsHeaders(req, res) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-Token');
 }
 
 function sendJson(req, res, statusCode, payload) {
@@ -27,7 +27,7 @@ module.exports = async (req, res) => {
 
     try {
         const catalystApp = catalyst.initialize(req);
-        const session = await validateSessionToken(catalystApp, req.headers.authorization);
+        const session = await validateSessionToken(catalystApp, req.headers['x-session-token']);
 
         if (!session) {
             return sendJson(req, res, 401, {

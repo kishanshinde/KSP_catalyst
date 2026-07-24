@@ -6,7 +6,6 @@ function renderBarChart(doc, chart, options = {}) {
         width = THEME.contentWidth - 40,
         height = 120,
         barColor = THEME.colors.primary,
-        peakColor = '#dc2626',
         fontSize = 6
     } = options;
 
@@ -25,10 +24,9 @@ function renderBarChart(doc, chart, options = {}) {
     let xPos = startX;
     chart.forEach(entry => {
         const barHeight = (entry.count / maxCount) * height;
-        const isPeak = entry.count > 0 && entry.count === maxCount;
 
         doc.rect(xPos, chartBottom - barHeight, barWidth, barHeight)
-            .fill(isPeak ? peakColor : barColor);
+            .fill(barColor);
 
         doc.fontSize(fontSize).font(THEME.fonts.regular).fillColor(THEME.colors.gray);
         doc.text(String(entry.count), xPos, chartBottom - barHeight - 10, {

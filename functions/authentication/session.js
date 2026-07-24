@@ -29,6 +29,28 @@ async function fetchRoleName(catalystApp, roleRowId) {
     }
 }
 
+/**
+ * Revokes all active sessions for a user (e.g. after a password reset),
+ * optionally keeping one session alive (the one making the request).
+ */
+async function revokeUserSessions(catalystApp, userRowId, { exceptSessionRowId } = {}) {
+    let query = `SELECT ROWID FROM user_sessions WHERE user_rowid = ${userRowId} AND revoked_at IS NULL`;
+    if (exceptSessionRowId) {
+        query += ` AND ROWID != ${exceptSessionRowId}`;
+    }
+
+    const rows = await catalystApp.zcql().executeZCQLQuery(query);
+    const revokedAt = formatDateTime(new Date());
+    await Promise.all(
+        (rows || []).map((r) =>
+            catalystApp.datastore().table('user_sessions').updateRow({
+                ROWID: r.user_sessions.ROWID,
+                revoked_at: revokedAt,
+            })
+        )
+    );
+}
+
 function toPublicUser(userRow, roleName) {
     const fullName = userRow.full_name || '';
     const [firstName, ...rest] = fullName.split(' ');
@@ -50,6 +72,7 @@ module.exports = {
     hashToken,
     generateToken,
     formatDateTime,
+    revokeUserSessions,
     fetchRoleName,
     toPublicUser,
     SESSION_TTL_MS,

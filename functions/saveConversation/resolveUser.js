@@ -8,7 +8,7 @@ const { validateSessionToken } = require('./session');
  * `null` when there is no valid session (caller should respond 401).
  */
 async function resolveUserRow(catalystApp, req) {
-    const session = await validateSessionToken(catalystApp, req?.headers?.authorization);
+    const session = await validateSessionToken(catalystApp, req?.headers?.['x-session-token']);
     if (!session) return null;
 
     return {

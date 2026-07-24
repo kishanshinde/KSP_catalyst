@@ -96,9 +96,14 @@ export function AuthProvider({ children }) {
     return payload.message
   }, [])
 
+  const forgotPassword = useCallback(async (email, newPassword) => {
+    const payload = await postAuthAction('forgot-password', { email, newPassword })
+    return payload.message
+  }, [])
+
   const value = useMemo(
-    () => ({ user, loading, login, logout, setInitialPassword }),
-    [user, loading, login, logout, setInitialPassword]
+    () => ({ user, loading, login, logout, setInitialPassword, forgotPassword }),
+    [user, loading, login, logout, setInitialPassword, forgotPassword]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

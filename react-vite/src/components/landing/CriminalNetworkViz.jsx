@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { api } from '../../services/api'
 
@@ -18,7 +17,6 @@ function GraphFallback() {
 
 export default function CriminalNetworkViz() {
   const { t } = useLanguage()
-  const navigate = useNavigate()
   const [networkData, setNetworkData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -58,7 +56,7 @@ export default function CriminalNetworkViz() {
           {t('landing.criminalNetwork')}
         </h3>
       </div>
-      <div className="h-96 rounded-2xl overflow-hidden border border-outline-variant dark:border-slate-700">
+      <div className="h-[700px] rounded-2xl overflow-hidden border border-outline-variant dark:border-slate-700">
         {loading ? (
           <GraphFallback />
         ) : error ? (
@@ -78,14 +76,6 @@ export default function CriminalNetworkViz() {
             <NetworkGraph data={networkData} />
           </Suspense>
         )}
-      </div>
-      <div className="mt-4 flex justify-end">
-        <button
-          onClick={() => navigate('/analytics')}
-          className="py-3 px-6 text-sm font-bold bg-primary text-on-primary rounded-xl hover:bg-primary/90 transition-colors"
-        >
-          {t('landing.fullNetworkView')}
-        </button>
       </div>
     </section>
   )

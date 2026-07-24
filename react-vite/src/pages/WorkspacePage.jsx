@@ -5,7 +5,6 @@ import { ArrowLeft } from 'lucide-react'
 import { useChat } from '../context/ChatContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import ChatWindow from '../components/chat/ChatWindow'
-import WorkspaceRenderer from '../components/workspace/WorkspaceRenderer'
 import ShareDropdown from '../components/common/ShareDropdown'
 
 export default function WorkspacePage() {
@@ -45,16 +44,6 @@ export default function WorkspacePage() {
         </div>
         <ChatWindow />
       </div>
-
-      <motion.div
-        initial={{ width: 0, opacity: 0 }}
-        animate={{ width: 380, opacity: 1 }}
-        exit={{ width: 0, opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        className="hidden lg:block h-full border-l border-outline-variant/30 dark:border-slate-700/30 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm"
-      >
-        <WorkspaceRenderer />
-      </motion.div>
     </motion.div>
   )
 }

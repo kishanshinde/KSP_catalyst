@@ -17,11 +17,19 @@ function formatDateTime(date) {
 }
 
 /**
- * Resolves a raw session token (as sent by the client in the
+ * Resolves a session credential (as sent by the client in the
  * `Authorization` header) to its `users` row, or null if the token is
- * missing, unknown, expired, or revoked.
+ * missing, unknown, expired, or revoked. Accepts either the bare token or
+ * a conventional `Bearer <token>` header value.
  */
-async function validateSessionToken(catalystApp, rawToken) {
+function extractBearerToken(rawHeader) {
+    if (!rawHeader) return null;
+    const match = /^Bearer\s+(.+)$/i.exec(String(rawHeader).trim());
+    return match ? match[1] : String(rawHeader).trim();
+}
+
+async function validateSessionToken(catalystApp, rawHeader) {
+    const rawToken = extractBearerToken(rawHeader);
     if (!rawToken) return null;
 
     const tokenHash = hashToken(rawToken);

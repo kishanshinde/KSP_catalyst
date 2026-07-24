@@ -11,6 +11,7 @@ import AnalyticsPage from './pages/AnalyticsPage'
 import ErrorBoundary from './components/common/ErrorBoundary'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import LoginPage from './components/auth/LoginPage'
+import ForgotPasswordPage from './components/auth/ForgotPasswordPage'
 import SetInitialPasswordPage from './components/auth/SetInitialPasswordPage'
 
 function PlaceholderPage({ titleKey }) {
@@ -26,6 +27,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/set-password" element={<SetInitialPasswordPage />} />
       <Route
         path="/*"

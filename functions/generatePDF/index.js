@@ -85,7 +85,7 @@ async function generateFromDB(body, req, res, resolve) {
 
 function generateFromPayload(body, req, res, resolve) {
     try {
-        const { reportType, period, summary, chart, crimeTypes, insights, dateRange, generatedAt, metadata } = body;
+        const { reportType, period, summary, chart, crimeTypes, insights, dateRange, generatedAt, metadata, barColor } = body;
 
         const doc = reportFactory.generate(reportType, {
             period,
@@ -94,6 +94,7 @@ function generateFromPayload(body, req, res, resolve) {
             chart,
             crimeTypes,
             insights,
+            barColor,
             metadata: {
                 ...metadata,
                 generatedAt: generatedAt || metadata?.generatedAt || new Date().toISOString()

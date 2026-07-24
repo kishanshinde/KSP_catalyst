@@ -6,20 +6,28 @@ const {
     hashToken,
     generateToken,
     formatDateTime,
+    revokeUserSessions,
     fetchRoleName,
     toPublicUser,
     SESSION_TTL_MS,
 } = require('./session');
 
 const MAX_FAILED_ATTEMPTS = 5;
-const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
+// Escalating lockout: 3 min the first time the threshold is crossed, 5 min
+// the next, then 15 min for every time after that.
+const LOCKOUT_TIERS_MS = [3 * 60 * 1000, 5 * 60 * 1000, 15 * 60 * 1000];
+
+function getLockoutMs(attempts) {
+    const tier = Math.min(attempts - MAX_FAILED_ATTEMPTS, LOCKOUT_TIERS_MS.length - 1);
+    return LOCKOUT_TIERS_MS[tier];
+}
 
 function setCorsHeaders(req, res) {
     const origin = req?.headers?.origin || 'http://localhost:3001';
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-Token');
 }
 
 function sendJson(req, res, statusCode, payload) {
@@ -30,6 +38,14 @@ function sendJson(req, res, statusCode, payload) {
 
 function escapeSql(value) {
     return String(value).replace(/'/g, "''");
+}
+
+// Accepts either the bare session token or a conventional `Bearer <token>`
+// Authorization header value.
+function extractBearerToken(rawHeader) {
+    if (!rawHeader) return null;
+    const match = /^Bearer\s+(.+)$/i.exec(String(rawHeader).trim());
+    return match ? match[1] : String(rawHeader).trim();
 }
 
 function safeParseJson(str) {
@@ -78,10 +94,11 @@ async function handleLogin(catalystApp, req, res, body) {
     }
 
     if (user.locked_until && new Date(user.locked_until).getTime() > Date.now()) {
+        const remainingMin = Math.ceil((new Date(user.locked_until).getTime() - Date.now()) / 60000);
         return sendJson(req, res, 401, {
             success: false,
             code: 'ACCOUNT_LOCKED',
-            message: 'Too many failed attempts. Please try again later or contact your administrator.',
+            message: `Too many failed attempts. Please try again in ${remainingMin} minute${remainingMin === 1 ? '' : 's'}.`,
         });
     }
 
@@ -94,15 +111,33 @@ async function handleLogin(catalystApp, req, res, body) {
     if (!passwordValid) {
         const attempts = (user.failed_login_attempts || 0) + 1;
         const update = { ROWID: user.ROWID, failed_login_attempts: attempts };
+
+        let response;
         if (attempts >= MAX_FAILED_ATTEMPTS) {
-            update.locked_until = formatDateTime(new Date(Date.now() + LOCKOUT_MS));
+            const lockoutMs = getLockoutMs(attempts);
+            const lockoutMin = Math.round(lockoutMs / 60000);
+            update.locked_until = formatDateTime(new Date(Date.now() + lockoutMs));
+            response = {
+                success: false,
+                code: 'ACCOUNT_LOCKED',
+                message: `Too many failed attempts. Your account is locked for ${lockoutMin} minute${lockoutMin === 1 ? '' : 's'}.`,
+            };
+        } else {
+            const remaining = MAX_FAILED_ATTEMPTS - attempts;
+            response = {
+                success: false,
+                code: 'INVALID_CREDENTIALS',
+                message: `Invalid email or password. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before your account is temporarily locked.`,
+                attemptsRemaining: remaining,
+            };
         }
+
         try {
             await table.updateRow(update);
         } catch (err) {
             console.warn('[authentication] Failed to record failed attempt:', err.message);
         }
-        return genericFailure();
+        return sendJson(req, res, 401, response);
     }
 
     try {
@@ -139,7 +174,7 @@ async function handleLogin(catalystApp, req, res, body) {
 }
 
 async function handleLogout(catalystApp, req, res) {
-    const rawToken = req.headers.authorization;
+    const rawToken = extractBearerToken(req.headers['x-session-token']);
     if (rawToken) {
         try {
             const rows = await catalystApp.zcql().executeZCQLQuery(
@@ -157,6 +192,44 @@ async function handleLogout(catalystApp, req, res) {
         }
     }
     return sendJson(req, res, 200, { success: true });
+}
+
+async function handleForgotPassword(catalystApp, req, res, body) {
+    const email = String(body.email || '').trim().toLowerCase();
+    const newPassword = String(body.newPassword || '');
+
+    if (!email || !newPassword) {
+        return sendJson(req, res, 400, { success: false, code: 'MISSING_FIELDS', message: 'Email and new password are required.' });
+    }
+    if (newPassword.length < 8) {
+        return sendJson(req, res, 400, { success: false, code: 'WEAK_PASSWORD', message: 'Password must be at least 8 characters.' });
+    }
+
+    // Generic response either way — don't reveal whether an email is registered.
+    const genericSuccess = () =>
+        sendJson(req, res, 200, { success: true, message: 'Password has been reset. Please sign in.' });
+
+    const user = await findUserByEmail(catalystApp, email);
+    if (!user || user.is_active === false) {
+        return genericSuccess();
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await catalystApp.datastore().table('users').updateRow({
+        ROWID: user.ROWID,
+        password_hash: passwordHash,
+        password_changed_at: formatDateTime(new Date()),
+        failed_login_attempts: 0,
+        locked_until: null,
+    });
+
+    try {
+        await revokeUserSessions(catalystApp, user.ROWID);
+    } catch (err) {
+        console.warn('[authentication] Failed to revoke sessions after password reset:', err.message);
+    }
+
+    return genericSuccess();
 }
 
 async function handleSetInitialPassword(catalystApp, req, res, body) {
@@ -179,7 +252,7 @@ async function handleSetInitialPassword(catalystApp, req, res, body) {
         return sendJson(req, res, 403, {
             success: false,
             code: 'PASSWORD_ALREADY_SET',
-            message: 'This account already has a password set. Contact your administrator if you need it reset.',
+            message: 'This account already has a password set. Use "Forgot password" instead.',
         });
     }
 
@@ -214,6 +287,8 @@ module.exports = async (req, res) => {
                 return await handleLogin(catalystApp, req, res, body);
             case 'logout':
                 return await handleLogout(catalystApp, req, res);
+            case 'forgot-password':
+                return await handleForgotPassword(catalystApp, req, res, body);
             case 'set-initial-password':
                 return await handleSetInitialPassword(catalystApp, req, res, body);
             default:

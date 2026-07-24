@@ -191,6 +191,7 @@ export function ChatProvider({ children }) {
         if (!chat || !chat.messages || chat.messages.length === 0) return
 
         const formatted = chat.messages.map(serializeMessage)
+        const isNewConversation = !chat.backendId
 
         const payload = {
           conversation_title: chat.title,
@@ -212,7 +213,14 @@ export function ChatProvider({ children }) {
           setConversations((prev) =>
             prev.map((c) =>
               c.id === chatId
-                ? { ...c, backendId: response.conversationId, saved: true }
+                ? {
+                    ...c,
+                    backendId: response.conversationId,
+                    saved: true,
+                    // First save generates the LLM title server-side — adopt
+                    // it once; later saves don't return/touch the title.
+                    title: isNewConversation && response.title ? response.title : c.title,
+                  }
                 : c
             )
           )
@@ -515,19 +523,7 @@ export function ChatProvider({ children }) {
         return
       }
 
-      const { assistant, workspace, conversation: responseConversation } = aiResponse
-
-      if (responseConversation?.id) {
-        updateBackendId(chatId, responseConversation.id)
-      }
-
-      // First exchange in a new conversation returns an LLM-generated summary
-      // title — adopt it once; later exchanges don't touch the title again.
-      if (responseConversation?.title && chat && chat.messages.length === 0) {
-        setConversations((prev) =>
-          prev.map((c) => (c.id === chatId ? { ...c, title: responseConversation.title } : c))
-        )
-      }
+      const { assistant, workspace } = aiResponse
 
       if (!aiResponse.success) {
         const errMsg = aiResponse.error?.message || t('chat.errorUnableToUnderstand')

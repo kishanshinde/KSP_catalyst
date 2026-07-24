@@ -3,6 +3,7 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 
 const API_GATEWAY_ENDPOINTS = [
+  '/ai-chat',
   '/getCurrentUser',
   '/authentication',
   '/generatePDF',
@@ -15,6 +16,7 @@ const API_GATEWAY_ENDPOINTS = [
   '/CrimeTrends',
   '/RecentCases',
   '/CrimeheatMap',
+  '/criminal-network-analysis',
 ]
 
 // https://vitejs.dev/config/

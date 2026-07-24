@@ -794,7 +794,7 @@ function extractValidMessages(raw) {
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Session-Token');
 
     if (req.method === 'OPTIONS') {
         res.writeHead(200);
@@ -906,20 +906,9 @@ module.exports = async (req, res) => {
                         finalQuery, networkResult.workspace, LLM_TOKEN, originalLanguage, conversationHistory
                     );
 
-                    // Save conversation
-                    const saveResult = await saveConversationDirect(zcql, {
-                        conversationId: conversationId,
-                        question: userQuestion,
-                        response: networkTextResponse || 'Network analysis complete',
-                        intent: intentResult,
-                        data_count: networkResult.workspace?.data?.nodes?.length || 0,
-                        language: originalLanguage
-                    });
-
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({
                         success: true,
-                        conversation: { id: saveResult?.conversationId || null },
                         intent: intentResult,
                         response: networkTextResponse || 'Network analysis complete',
                         workspace: networkResult.workspace,
@@ -958,25 +947,9 @@ module.exports = async (req, res) => {
                 intentResult.intent
             );
 
-            // ✅ STEP 8: Save conversation
-            console.log('[ai-chat] Step 6: Saving conversation...');
-            const saveResult = await saveConversationDirect(zcql, {
-                conversationId: conversationId,
-                user_rowid: resolvedUser.rowid,
-                question: userQuestion,
-                response: finalResponse.response || 'No response generated',
-                intent: intentResult,
-                data_count: queryResult.length || 0,
-                language: originalLanguage,
-                llmToken: LLM_TOKEN
-            });
-
-            const savedConversationId = saveResult?.conversationId || null;
-
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: true,
-                conversation: { id: savedConversationId, title: saveResult?.title || null },
                 intent: intentResult,
                 response: finalResponse.response || 'No response generated',
                 raw_data: queryResult,
@@ -1943,177 +1916,3 @@ function safeString(value) {
     return String(value).replace(/'/g, "''");
 }
 
-// ============================================================
-// HELPER: Generate Conversation Title (LLM summary, best-effort)
-// ============================================================
-
-function generateTitleWithLLM(question, response, token) {
-    return new Promise((resolve) => {
-        const fallback = String(question || 'New Investigation').substring(0, 50);
-
-        if (!token || !question) {
-            resolve(fallback);
-            return;
-        }
-
-        const systemPrompt = `You summarize the start of a police case-intelligence chat into a short title.
-
-IMPORTANT RULES:
-1. Return ONLY the title text, nothing else — no quotes, no punctuation at the end, no explanations.
-2. Keep it to 4-8 words.
-3. Summarize what the conversation is about, not a generic phrase like "New Chat".
-4. Use the same language as the question.`;
-
-        const userPrompt = `Question: ${String(question).slice(0, 500)}\n\nAnswer: ${String(response || '').slice(0, 500)}\n\nTitle:`;
-
-        const payload = JSON.stringify({
-            model: "crm-di-glm47b_30b_it",
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt }
-            ],
-            max_tokens: 30,
-            temperature: 0.3,
-            stream: false,
-            chat_template_kwargs: {
-                enable_thinking: false
-            }
-        });
-
-        const options = {
-            hostname: 'api.catalyst.zoho.in',
-            path: '/quickml/v1/project/47024000000013051/glm/chat',
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Zoho-oauthtoken ${token}`,
-                'CATALYST-ORG': '60073436832',
-                'Content-Length': Buffer.byteLength(payload)
-            }
-        };
-
-        const request = https.request(options, (res) => {
-            let data = '';
-            res.on('data', (chunk) => { data += chunk; });
-            res.on('end', () => {
-                try {
-                    if (res.statusCode !== 200) {
-                        console.warn('[generateTitleWithLLM] API Error:', res.statusCode);
-                        return resolve(fallback);
-                    }
-                    const parsed = JSON.parse(data);
-                    let title = parsed.choices?.[0]?.message?.content || '';
-                    title = title.replace(/^["'\s]+|["'\s.]+$/g, '').trim();
-                    resolve(title.length > 0 ? title.slice(0, 80) : fallback);
-                } catch (err) {
-                    console.warn('[generateTitleWithLLM] Parse Error:', err.message);
-                    resolve(fallback);
-                }
-            });
-        });
-
-        request.on('error', (err) => {
-            console.warn('[generateTitleWithLLM] Request Error:', err.message);
-            resolve(fallback);
-        });
-
-        request.write(payload);
-        request.end();
-    });
-}
-
-// ============================================================
-// HELPER: Save Conversation
-// ============================================================
-
-function saveConversationDirect(zcql, data) {
-    return new Promise((resolve) => {
-        try {
-            const user_rowid = data.user_rowid;
-            const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
-            const newExchange = [
-                { role: 'user', content: data.question },
-                { role: 'assistant', content: data.response }
-            ];
-
-            if (data.conversationId) {
-                // UPDATE existing conversation
-                const fetchQuery = `SELECT conversation FROM conversation_history WHERE ROWID = '${safeString(data.conversationId)}'`;
-
-                zcql.executeZCQLQuery(fetchQuery).then((result) => {
-                    let existingMessages = [];
-                    if (result && result.length > 0) {
-                        const row = result[0].conversation_history || result[0];
-                        try {
-                            existingMessages = JSON.parse(row.conversation);
-                            if (!Array.isArray(existingMessages)) existingMessages = [];
-                        } catch (e) {
-                            existingMessages = [];
-                        }
-                    }
-
-                    // ✅ Limit to last 20 messages to prevent corruption
-                    const allMessages = [...existingMessages, ...newExchange];
-                    const limitedMessages = allMessages.slice(-20);
-                    const updatedConversation = JSON.stringify(limitedMessages);
-
-                    const updateQuery = `
-                        UPDATE conversation_history
-                        SET conversation = '${safeString(updatedConversation)}',
-                            response = '${safeString(data.response)}'
-                        WHERE ROWID = '${safeString(data.conversationId)}'
-                    `;
-
-                    return zcql.executeZCQLQuery(updateQuery);
-                }).then(() => {
-                    console.log('[ai-chat] ✅ Conversation updated successfully');
-                    resolve({ conversationId: data.conversationId });
-                }).catch((err) => {
-                    console.error('[ai-chat] ❌ Failed to update conversation:', err);
-                    resolve({ conversationId: data.conversationId });
-                });
-            } else {
-                // INSERT new conversation
-                const conversation = JSON.stringify(newExchange);
-
-                generateTitleWithLLM(data.question, data.response, data.llmToken).then((title) => {
-                    const query = `
-                        INSERT INTO conversation_history (
-                            user_rowid,
-                            conversation_title,
-                            conversation,
-                            question,
-                            response,
-                            language,
-                            created_at
-                        ) VALUES (
-                            '${user_rowid}',
-                            '${safeString(title)}',
-                            '${safeString(conversation)}',
-                            '${safeString(data.question)}',
-                            '${safeString(data.response)}',
-                            '${data.language || 'en'}',
-                            '${timestamp}'
-                        )
-                    `;
-
-                    return zcql.executeZCQLQuery(query).then((result) => {
-                        console.log('[ai-chat] ✅ Conversation saved successfully');
-                        let insertedId = null;
-                        if (result && result.length > 0) {
-                            const row = result[0].conversation_history || result[0];
-                            insertedId = row.ROWID || null;
-                        }
-                        resolve({ conversationId: insertedId, title });
-                    });
-                }).catch((err) => {
-                    console.error('[ai-chat] ❌ Failed to save conversation:', err);
-                    resolve({ conversationId: null, title: null });
-                });
-            }
-        } catch (err) {
-            console.error('[ai-chat] ❌ Save conversation error:', err);
-            resolve({ conversationId: null });
-        }
-    });
-}

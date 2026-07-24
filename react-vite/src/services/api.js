@@ -200,11 +200,6 @@ function normalizeAIResponse(raw) {
   return {
     success: raw.success !== false,
 
-    conversation: {
-      id: raw.conversation?.id ?? null,
-      title: raw.conversation?.title ?? null,
-    },
-
     assistant: raw.assistant || {
       role: 'assistant',
       content: raw.response || raw.text || '',

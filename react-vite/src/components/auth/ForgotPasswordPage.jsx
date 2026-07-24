@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 
-export default function SetInitialPasswordPage() {
-  const { setInitialPassword } = useAuth()
+export default function ForgotPasswordPage() {
+  const { forgotPassword } = useAuth()
   const navigate = useNavigate()
 
   const [email, setEmail] = useState('')
@@ -30,11 +30,11 @@ export default function SetInitialPasswordPage() {
 
     setSubmitting(true)
     try {
-      await setInitialPassword(email, password)
+      await forgotPassword(email, password)
       setSuccess(true)
       setTimeout(() => navigate('/login', { replace: true }), 1500)
     } catch (err) {
-      setError(err.message || 'Could not set your password. Please try again.')
+      setError(err.message || 'Could not reset your password. Please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -70,13 +70,13 @@ export default function SetInitialPasswordPage() {
             LUMINA CRIME INTELLIGENCE PORTAL
           </p>
           <p className="text-sm font-semibold text-slate-300 mt-4 text-center">
-            Set Your Password
+            Reset Your Password
           </p>
         </div>
 
         {success ? (
           <p className="text-xs font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-900/60 rounded-lg px-3 py-2 text-center">
-            Password set. Redirecting you to sign in…
+            Password reset. Redirecting you to sign in…
           </p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -98,7 +98,7 @@ export default function SetInitialPasswordPage() {
 
             <div>
               <label htmlFor="new-password" className="block text-xs font-semibold text-slate-400 mb-1.5">
-                Password
+                New Password
               </label>
               <div className="relative">
                 <input
@@ -109,7 +109,7 @@ export default function SetInitialPasswordPage() {
                   minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder="Enter your new password"
                   className="w-full rounded-lg bg-slate-950/60 border border-slate-800 pl-4 pr-10 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
                 />
                 <button
@@ -138,7 +138,7 @@ export default function SetInitialPasswordPage() {
                   minLength={8}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter the password"
+                  placeholder="Re-enter the new password"
                   className="w-full rounded-lg bg-slate-950/60 border border-slate-800 pl-4 pr-10 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
                 />
                 <button
@@ -165,8 +165,8 @@ export default function SetInitialPasswordPage() {
               disabled={submitting}
               className="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-3 cursor-pointer group"
             >
-              <span className="material-symbols-outlined text-xl">key</span>
-              <span>{submitting ? 'Setting…' : 'Confirm'}</span>
+              <span className="material-symbols-outlined text-xl">lock_reset</span>
+              <span>{submitting ? 'Resetting…' : 'Reset Password'}</span>
             </button>
           </form>
         )}
