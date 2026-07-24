@@ -1,6 +1,6 @@
-import { memo } from 'react'
+import { memo, useState, useRef, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { User, Bot, AlertTriangle, Ban } from 'lucide-react'
+import { User, Bot, AlertTriangle, Ban, Volume2, VolumeX } from 'lucide-react'
 import { formatTime } from '../../utils/formatters'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { MESSAGE_STATUS } from '../../utils/constants'
@@ -42,9 +42,56 @@ function StatusBadge({ status }) {
 }
 
 const ChatMessage = memo(function ChatMessage({ message }) {
-  const { language } = useLanguage()
+  const { language, t } = useLanguage()
   const isUser = message.role === 'user'
   const isCancelled = message.status === MESSAGE_STATUS.CANCELLED
+
+  const [isPlaying, setIsPlaying] = useState(false)
+  const utteranceRef = useRef(null)
+
+  const isSpeechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        speechSynthesis.cancel()
+      }
+    }
+  }, [])
+
+  const handleSpeak = useCallback(() => {
+    if (!isSpeechSupported) return
+
+    if (isPlaying) {
+      speechSynthesis.cancel()
+      utteranceRef.current = null
+      setIsPlaying(false)
+      return
+    }
+
+    const utterance = new SpeechSynthesisUtterance(message.content)
+    utterance.lang = localeMap[language] || 'en-IN'
+
+    if (language === 'kn') {
+      const voices = speechSynthesis.getVoices()
+      const knVoice = voices.find(v => v.lang.startsWith('kn'))
+      if (knVoice) utterance.voice = knVoice
+    }
+
+    utterance.onend = () => {
+      setIsPlaying(false)
+      utteranceRef.current = null
+    }
+
+    utterance.onerror = () => {
+      setIsPlaying(false)
+      utteranceRef.current = null
+    }
+
+    utteranceRef.current = utterance
+    speechSynthesis.speak(utterance)
+    setIsPlaying(true)
+  }, [isPlaying, message.content, language, isSpeechSupported])
 
   return (
     <motion.div
@@ -80,6 +127,20 @@ const ChatMessage = memo(function ChatMessage({ message }) {
             {formatTime(message.timestamp, localeMap[language] || 'en-IN')}
           </span>
           {!isUser && <StatusBadge status={message.status} />}
+          {!isUser && !isCancelled && isSpeechSupported && (
+            <button
+              onClick={handleSpeak}
+              className="p-1 rounded text-on-surface-variant/50 hover:text-on-surface dark:hover:text-white hover:bg-surface-container dark:hover:bg-slate-700 transition-colors flex items-center justify-center cursor-pointer"
+              title={isPlaying ? t('common.stopSpeaking') : t('common.speakResponse')}
+              aria-label={isPlaying ? t('common.stopSpeaking') : t('common.speakResponse')}
+            >
+              {isPlaying ? (
+                <VolumeX size={12} className="text-red-500" />
+              ) : (
+                <Volume2 size={12} />
+              )}
+            </button>
+          )}
         </div>
       </div>
 

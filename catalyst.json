@@ -18,7 +18,10 @@
       "RecentCases",
       "authentication",
       "syncCrimeMLFeatures",
-      "CrimeheatMap"
+      "CrimeheatMap",
+      "criminal-network-analysis",
+      "speech-to-text",
+      "text-to-speech"
     ],
     "ignore": [],
     "source": "functions"

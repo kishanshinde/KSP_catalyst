@@ -459,6 +459,54 @@ export const api = {
     }
     return request('/deleteConversation', { conversationId })
   },
+
+  getCNASummary(options = {}) {
+    return request('/criminal-network-analysis', { action: 'get_summary' }, options)
+  },
+
+  searchCNANetwork({ searchType, searchQuery, depth }, options = {}) {
+    return request('/criminal-network-analysis', {
+      action: 'get_full_network',
+      params: { search_type: searchType, search_query: searchQuery, depth },
+    }, options)
+  },
+
+  getCNAFullNetwork(options = {}) {
+    return request('/criminal-network-analysis', { action: 'get_full_network' }, options)
+  },
+
+  async transcribeAudio(audioBlob) {
+    if (USE_MOCK) {
+      return { success: true, text: 'Mock STT: show all repeat offenders in Bangalore', language: 'en' }
+    }
+    const response = await fetch(`${API_BASE}/speech-to-text`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'audio/webm',
+      },
+      body: audioBlob,
+    })
+    if (!response.ok) {
+      throw new Error('Transcription failed')
+    }
+    return response.json()
+  },
+
+  async synthesizeSpeech(text) {
+    if (USE_MOCK) {
+      const rawSilence = 'UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA=='
+      const byteCharacters = atob(rawSilence)
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: 'audio/wav' })
+      return { blob }
+    }
+    const blob = await requestBlob('/text-to-speech', { text })
+    return { blob }
+  },
 }
 
 export { ApiError }

@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useChat } from '../context/ChatContext'
 import { useLanguage } from '../contexts/LanguageContext'
+import VoiceButton from '../components/common/VoiceButton'
+import useSpeechRecognition from '../hooks/useSpeechRecognition'
 import SuggestedThreads from '../components/landing/SuggestedThreads'
 import RecentCases from '../components/dashboard/RecentCases'
 import LiveHotspots from '../components/landing/LiveHotspots'
@@ -15,6 +17,15 @@ export default function HomePage() {
   const location = useLocation()
   const { t } = useLanguage()
   const { sendMessage } = useChat()
+
+  const { language } = useLanguage()
+  const { isSupported: isVoiceSupported, isRecording, start, stop } = useSpeechRecognition({
+    lang: language === 'kn' ? 'kn-IN' : 'en-IN',
+    onResult: (transcript) => {
+      sendMessage(transcript)
+      navigate('/chat/current')
+    },
+  })
 
   // Sidebar nav items link here as `/#<section-id>` — scroll to the
   // matching section whenever the hash changes (including on first mount).
@@ -55,9 +66,13 @@ export default function HomePage() {
             type="text"
           />
           <div className="flex items-center gap-2 pr-2">
-            <button type="button" className="p-3 text-slate-400 dark:text-slate-500 hover:text-primary transition-all rounded-full">
-              <span className="material-symbols-outlined">mic</span>
-            </button>
+            <VoiceButton
+              disabled={!isVoiceSupported}
+              isRecording={isRecording}
+              onClick={() => isRecording ? stop() : start()}
+              title={!isVoiceSupported ? t('common.voiceNotSupported') : isRecording ? t('common.stopRecording') : t('common.voiceInput')}
+              className="rounded-full"
+            />
             <button
               type="submit"
               className="bg-primary text-on-primary font-bold px-10 py-4 rounded-full hover:shadow-lg hover:shadow-primary/20 transition-all flex items-center gap-2"
