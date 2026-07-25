@@ -11,12 +11,15 @@ const API_GATEWAY_ENDPOINTS = [
   '/logEvidence',
   '/dashboardAggregation',
   '/listConversations',
+  '/getConversation',
   '/renameConversation',
   '/deleteConversation',
   '/CrimeTrends',
   '/RecentCases',
   '/CrimeheatMap',
   '/criminal-network-analysis',
+  '/speech-to-text',
+  '/text-to-speech',
 ]
 
 // https://vitejs.dev/config/
@@ -24,19 +27,13 @@ export default defineConfig(({ mode }) => {
   const rootDir = fileURLToPath(new URL('.', import.meta.url))
   const env = loadEnv(mode, rootDir, '')
   const catalystDomain = env.VITE_CATALYST_DOMAIN
-  
+
   const catalystTarget = env.VITE_BACKEND_URL || (catalystDomain
     ? `https://${catalystDomain}.catalystserverless.in`
     : 'http://localhost:3000')
 
   const proxyMap = {
     '/__catalyst': {
-      target: catalystTarget,
-      changeOrigin: true,
-      secure: false,
-      cookieDomainRewrite: 'localhost',
-    },
-    '/server': {
       target: catalystTarget,
       changeOrigin: true,
       secure: false,
