@@ -1,0 +1,9 @@
+{
+  "name": "text-to-speech",
+  "version": "1.0.0",
+  "description": "Catalyst serverless function for Zia Text to Speech",
+  "main": "index.js",
+  "dependencies": {
+    "zcatalyst-sdk-node": "^3.4.0"
+  }
+}

@@ -2,7 +2,6 @@
   "functions": {
     "targets": [
       "ai-chat",
-      "test-llm",
       "chat-intent",
       "dashboardAggregation",
       "getConversation",
@@ -16,7 +15,13 @@
       "deleteConversation",
       "listConversations",
       "CrimeTrends",
-      "RecentCases"
+      "RecentCases",
+      "authentication",
+      "syncCrimeMLFeatures",
+      "CrimeheatMap",
+      "criminal-network-analysis",
+      "speech-to-text",
+      "text-to-speech"
     ],
     "ignore": [],
     "source": "functions"
@@ -26,5 +31,9 @@
       "name": "react-vite",
       "source": "./react-vite"
     }
-  ]
+  ],
+  "apig": {
+    "rules": "catalyst-user-rules.json",
+    "enabled": true
+  }
 }

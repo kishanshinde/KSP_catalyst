@@ -6,8 +6,11 @@ const { renderTable } = require('../shared/pdfTable');
 const { renderBarChart } = require('../shared/pdfChart');
 const { formatDate, formatDateTime } = require('../shared/helpers');
 
+const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
+
 function generate(data) {
-    const { year, month, monthName, dateRange, summary, analytics, chart, crimeTypes, insights, metadata } = data;
+    const { year, month, monthName, dateRange, summary, analytics, chart, crimeTypes, insights, metadata, barColor } = data;
+    const resolvedBarColor = HEX_COLOR_RE.test(barColor || '') ? barColor : THEME.colors.primary;
 
     const doc = new PDFDocument({ margin: THEME.margins.left });
     registerFonts(doc);
@@ -117,7 +120,7 @@ function generate(data) {
         doc.text(monthName ? 'Daily Trend' : 'Monthly Trend');
         doc.moveDown(0.3);
 
-        renderBarChart(doc, chart);
+        renderBarChart(doc, chart, { barColor: resolvedBarColor });
     }
 
     renderFooter(doc);

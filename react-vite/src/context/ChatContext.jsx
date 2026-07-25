@@ -14,16 +14,6 @@ function serializeMessage(message) {
     workspaceType: message.workspaceType ?? null,
     workspaceData: message.workspaceData ?? null,
     metadata: message.metadata ?? {},
-    attachments: message.attachments?.length
-      ? message.attachments.map((a) => ({
-          id: a.id,
-          name: a.name,
-          size: a.size,
-          type: a.type,
-          uploaded: a.uploaded ?? false,
-          fileId: a.fileId ?? null,
-        }))
-      : [],
   }
 }
 
@@ -42,7 +32,6 @@ export function ChatProvider({ children }) {
   const [loadingPhase, setLoadingPhase] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
-  const [attachments, setAttachments] = useState([])
 
   const loadedRef = useRef(false)
   const savingRef = useRef(false)
@@ -68,7 +57,6 @@ export function ChatProvider({ children }) {
             title: c.title || 'Untitled',
             snippet: '',
             messages: [],
-            pinned: false,
             saved: true,
             createdAt: c.createdAt || new Date().toISOString(),
             loaded: false,
@@ -101,7 +89,6 @@ export function ChatProvider({ children }) {
       title: 'New Investigation',
       schemaVersion: 1,
       messages: [],
-      pinned: false,
       saved: false,
       backendId: null,
       createdAt: new Date().toISOString(),
@@ -204,6 +191,7 @@ export function ChatProvider({ children }) {
         if (!chat || !chat.messages || chat.messages.length === 0) return
 
         const formatted = chat.messages.map(serializeMessage)
+        const isNewConversation = !chat.backendId
 
         const payload = {
           conversation_title: chat.title,
@@ -225,7 +213,14 @@ export function ChatProvider({ children }) {
           setConversations((prev) =>
             prev.map((c) =>
               c.id === chatId
-                ? { ...c, backendId: response.conversationId, saved: true }
+                ? {
+                    ...c,
+                    backendId: response.conversationId,
+                    saved: true,
+                    // First save generates the LLM title server-side — adopt
+                    // it once; later saves don't return/touch the title.
+                    title: isNewConversation && response.title ? response.title : c.title,
+                  }
                 : c
             )
           )
@@ -303,25 +298,6 @@ export function ChatProvider({ children }) {
     },
     [language, updateBackendId]
   )
-
-  const addAttachments = useCallback((files) => {
-    const newFiles = Array.from(files).map((file) => ({
-      id: generateId(),
-      file,
-      name: file.name,
-      size: file.size,
-      type: file.type,
-    }))
-    setAttachments((prev) => [...prev, ...newFiles])
-  }, [])
-
-  const removeAttachment = useCallback((id) => {
-    setAttachments((prev) => prev.filter((a) => a.id !== id))
-  }, [])
-
-  const clearAttachments = useCallback(() => {
-    setAttachments([])
-  }, [])
 
   const cancelGeneration = useCallback(() => {
     if (abortControllerRef.current) {
@@ -417,19 +393,6 @@ export function ChatProvider({ children }) {
     []
   )
 
-  const togglePin = useCallback((id) => {
-    setConversations((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, pinned: !c.pinned } : c))
-    )
-  }, [])
-
-  const updateConversationTitle = useCallback((id, firstMsg) => {
-    const title = firstMsg.length > 40 ? firstMsg.slice(0, 40) + '...' : firstMsg
-    setConversations((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, title } : c))
-    )
-  }, [])
-
   const sendMessage = useCallback(
     async (text) => {
       let chatId = currentId
@@ -443,9 +406,6 @@ export function ChatProvider({ children }) {
         abortControllerRef.current = null
       }
 
-      // Clear attachments on send
-      clearAttachments()
-
       const userMsg = {
         id: generateId(),
         role: 'user',
@@ -455,19 +415,24 @@ export function ChatProvider({ children }) {
         workspaceType: null,
         workspaceData: null,
         metadata: {},
-        attachments: [],
       }
 
-      setConversations((prev) =>
-        prev.map((c) =>
+      // Append the message and float this conversation to the top of the
+      // list, mirroring the backend's most-recently-active ordering so the
+      // sidebar doesn't silently reorder itself on the next reload.
+      setConversations((prev) => {
+        const next = prev.map((c) =>
           c.id === chatId ? { ...c, messages: [...c.messages, userMsg] } : c
         )
-      )
+        const idx = next.findIndex((c) => c.id === chatId)
+        if (idx > 0) {
+          const [chat] = next.splice(idx, 1)
+          next.unshift(chat)
+        }
+        return next
+      })
 
       const chat = conversationsRef.current.find((c) => c.id === chatId)
-      if (chat && chat.messages.length === 0) {
-        updateConversationTitle(chatId, text)
-      }
 
       setError(null)
 
@@ -505,7 +470,6 @@ export function ChatProvider({ children }) {
         workspaceType: null,
         workspaceData: null,
         metadata: {},
-        attachments: [],
       }
 
       setConversations((prev) =>
@@ -559,11 +523,7 @@ export function ChatProvider({ children }) {
         return
       }
 
-      const { assistant, workspace, conversation: responseConversation } = aiResponse
-
-      if (responseConversation?.id) {
-        updateBackendId(chatId, responseConversation.id)
-      }
+      const { assistant, workspace } = aiResponse
 
       if (!aiResponse.success) {
         const errMsg = aiResponse.error?.message || t('chat.errorUnableToUnderstand')
@@ -656,7 +616,7 @@ export function ChatProvider({ children }) {
       // --- Save entire conversation to backend ---
       saveConversationToBackend(chatId)
     },
-    [currentId, newConversation, updateConversationTitle, saveConversationToBackend, language, t, clearAttachments]
+    [currentId, newConversation, saveConversationToBackend, language, t]
   )
 
   const clearError = useCallback(() => setError(null), [])
@@ -674,7 +634,6 @@ export function ChatProvider({ children }) {
       streaming,
       saving,
       error,
-      attachments,
       sendMessage,
       newConversation,
       selectConversation,
@@ -683,11 +642,7 @@ export function ChatProvider({ children }) {
       renameConversation,
       updateBackendId,
       exportConversationPDF,
-      togglePin,
       clearError,
-      addAttachments,
-      removeAttachment,
-      clearAttachments,
       cancelGeneration,
     }),
     [
@@ -702,7 +657,6 @@ export function ChatProvider({ children }) {
       streaming,
       saving,
       error,
-      attachments,
       sendMessage,
       newConversation,
       selectConversation,
@@ -711,11 +665,7 @@ export function ChatProvider({ children }) {
       renameConversation,
       updateBackendId,
       exportConversationPDF,
-      togglePin,
       clearError,
-      addAttachments,
-      removeAttachment,
-      clearAttachments,
       cancelGeneration,
     ]
   )

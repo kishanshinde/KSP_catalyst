@@ -23,6 +23,10 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+.opencode
+.graphify
+.agents
+
 
 # IDE and editor files
 .vscode/
@@ -69,3 +73,4 @@ dist-ssr/
 
 # Additional files to ignore
 test-model.js
+AGENTS.md

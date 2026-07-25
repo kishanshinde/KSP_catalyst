@@ -1,59 +1,54 @@
 'use strict';
 
-const express = require('express');
 const catalyst = require('zcatalyst-sdk-node');
+const { validateSessionToken, fetchRoleName, toPublicUser } = require('./session');
 
-const app = express();
+function setCorsHeaders(req, res) {
+    const origin = req?.headers?.origin || 'http://localhost:3001';
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-Token');
+}
 
-app.use(express.json());
+function sendJson(req, res, statusCode, payload) {
+    setCorsHeaders(req, res);
+    res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(payload));
+}
 
-app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
+module.exports = async (req, res) => {
     if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
+        setCorsHeaders(req, res);
+        res.writeHead(200);
+        res.end();
+        return;
     }
 
-    next();
-});
-
-app.get('/', async (req, res) => {
     try {
-
         const catalystApp = catalyst.initialize(req);
+        const session = await validateSessionToken(catalystApp, req.headers['x-session-token']);
 
-        const userManagement = catalystApp.userManagement();
+        if (!session) {
+            return sendJson(req, res, 401, {
+                success: false,
+                code: 'AUTH_REQUIRED',
+                message: 'Authentication required. Please sign in.',
+            });
+        }
 
-        const currentUser = await userManagement.getCurrentUser();
+        const roleName = await fetchRoleName(catalystApp, session.user.role_rowid);
 
-        return res.status(200).json({
+        return sendJson(req, res, 200, {
             success: true,
-            user: {
-                user_id: currentUser.user_id,
-                zuid: currentUser.zuid,
-                first_name: currentUser.first_name,
-                last_name: currentUser.last_name,
-                email: currentUser.email_id,
-                role: currentUser.role_details?.role_name,
-                role_id: currentUser.role_details?.role_id,
-                status: currentUser.status,
-                confirmed: currentUser.is_confirmed
-            }
+            user: toPublicUser(session.user, roleName),
         });
-
     } catch (err) {
-
-        console.error(err);
-
-        return res.status(401).json({
-    		success: false,
-    		code: "AUTH_REQUIRED",
-   			message: "Authentication required. Please sign in."
-		});
-
+        console.error('[getCurrentUser]', err);
+        return sendJson(req, res, 500, {
+            success: false,
+            code: 'AUTH_ERROR',
+            message: err.message,
+        });
     }
-});
-
-module.exports = app;
+};

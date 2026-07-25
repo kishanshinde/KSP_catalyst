@@ -1,10 +1,11 @@
 const catalyst = require("zcatalyst-sdk-node");
+const { resolveUserRow } = require("./resolveUser");
 
 module.exports = (req, res) => {
     return new Promise((resolve) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Session-Token');
 
         if (req.method === 'OPTIONS') {
             res.writeHead(200);
@@ -34,7 +35,7 @@ module.exports = (req, res) => {
 function setCorsHeaders(res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Session-Token');
 }
 
 async function processAndFetch(body, req, res, resolve) {
@@ -51,10 +52,26 @@ async function processAndFetch(body, req, res, resolve) {
         const catalystApp = catalyst.initialize(req);
         const zcql = catalystApp.zcql();
 
+        // Resolve the logged-in user's Datastore row (users table). Without
+        // this, any caller could read any conversation just by guessing/
+        // incrementing conversationId, regardless of who actually owns it.
+        const resolved = await resolveUserRow(catalystApp, req);
+        if (!resolved) {
+            setCorsHeaders(res);
+            res.writeHead(401, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({
+                success: false,
+                code: 'AUTH_REQUIRED',
+                message: 'Authentication required. Please sign in.',
+            }));
+            return resolve();
+        }
+        const user_rowid = resolved.rowid;
+
         const query = `
             SELECT ROWID, conversation_title, language, created_at, question, response, conversation
             FROM conversation_history
-            WHERE ROWID = ${conversationId}
+            WHERE ROWID = ${conversationId} AND user_rowid = ${user_rowid}
         `;
 
         console.log("Executing ZCQL:", query);
