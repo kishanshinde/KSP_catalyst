@@ -8,7 +8,16 @@ const fs = require('fs');
 const path = require('path');
 
 // ============================================================
-// LOAD .env FROM CURRENT DIRECTORY
+// AUTO-REFRESH TOKEN MANAGER
+// Tokens are refreshed automatically via Zoho OAuth refresh_token.
+// Set ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN
+// in Catalyst Console → App Settings → Environments.
+// Falls back to LLM_ACCESS_TOKEN in .env for local dev.
+// ============================================================
+const { getLLMToken, getTranslateToken } = require('./shared/tokenManager');
+
+// ============================================================
+// LOAD .env FROM CURRENT DIRECTORY (local dev fallback)
 // ============================================================
 function loadLocalEnv() {
     const envPath = path.join(__dirname, '.env');
@@ -42,25 +51,16 @@ function loadLocalEnv() {
     });
 }
 
-// Load .env
+// Load .env (populates LLM_ACCESS_TOKEN etc. as local dev fallback)
 loadLocalEnv();
 
-// ============================================================
-// GET TOKENS FROM .env ONLY
-// ============================================================
-const LLM_TOKEN = process.env.LLM_ACCESS_TOKEN;
-const TRANSLATE_TOKEN = process.env.TRANSLATE_ACCESS_TOKEN;
-
-console.log('[ai-chat] 🔑 LLM Token loaded:', LLM_TOKEN ? '✅ Yes' : '❌ No');
-console.log('[ai-chat] 🔑 LLM Token starts with:', LLM_TOKEN?.substring(0, 15) + '...');
-console.log('[ai-chat] 🔑 Translate Token loaded:', TRANSLATE_TOKEN ? '✅ Yes' : '❌ No');
-console.log('[ai-chat] 🔑 Translate Token starts with:', TRANSLATE_TOKEN?.substring(0, 15) + '...');
-
-if (!LLM_TOKEN) {
-    console.error('[ai-chat] ❌ LLM_ACCESS_TOKEN is missing in .env');
-}
-if (!TRANSLATE_TOKEN) {
-    console.error('[ai-chat] ❌ TRANSLATE_ACCESS_TOKEN is missing in .env');
+// Log token strategy at startup
+if (process.env.ZOHO_REFRESH_TOKEN) {
+    console.log('[ai-chat] 🔑 Token strategy: AUTO-REFRESH via ZOHO_REFRESH_TOKEN ✅');
+} else if (process.env.LLM_ACCESS_TOKEN) {
+    console.log('[ai-chat] 🔑 Token strategy: STATIC .env token (local dev fallback) ⚠️ — token will expire!');
+} else {
+    console.error('[ai-chat] ❌ No token source found! Set ZOHO_REFRESH_TOKEN in Catalyst Console or LLM_ACCESS_TOKEN in .env');
 }
 
 // ============================================================
@@ -824,12 +824,20 @@ module.exports = async (req, res) => {
                 }));
             }
 
-            if (!LLM_TOKEN) {
-                console.error('[ai-chat] ❌ No LLM_TOKEN found!');
+            // ✅ STEP 0: Initialize Catalyst & fetch token (auto-refreshes if expired)
+            const app = catalyst.initialize(req);
+            const zcql = app.zcql();
+
+            let LLM_TOKEN;
+            try {
+                LLM_TOKEN = await getLLMToken(app);
+                console.log('[ai-chat] 🔑 LLM token acquired:', LLM_TOKEN.substring(0, 15) + '...');
+            } catch (tokenErr) {
+                console.error('[ai-chat] ❌ Could not obtain LLM token:', tokenErr.message);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 return res.end(JSON.stringify({
                     success: false,
-                    error: 'LLM_TOKEN not configured.'
+                    error: 'LLM token unavailable. Check ZOHO_REFRESH_TOKEN in Catalyst Console.'
                 }));
             }
 
