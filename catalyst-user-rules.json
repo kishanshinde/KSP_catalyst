@@ -9,10 +9,7 @@
       "overall": {},
       "ip": {}
     },
-    "target_id": "47024000000088032",
-    "authentication": [
-      "CatalystUserManagement"
-    ]
+    "target_id": "47024000000088032"
   },
   {
     "name": "criminal-network-analysis",
@@ -169,5 +166,49 @@
       "ip": {}
     },
     "target_id": "47024000000032058"
+  },
+  {
+    "name": "ai-chat",
+    "source_endpoint": "/ai-chat",
+    "target_endpoint": "/server/ai-chat/",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    }
+  },
+  {
+    "name": "getConversation",
+    "source_endpoint": "/getConversation",
+    "target_endpoint": "/server/getConversation/",
+    "target": "advancedio",
+    "method": "ANY",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    }
+  },
+  {
+    "name": "speech-to-text",
+    "source_endpoint": "/speech-to-text",
+    "target_endpoint": "/server/speech-to-text/",
+    "target": "advancedio",
+    "method": "POST",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    }
+  },
+  {
+    "name": "text-to-speech",
+    "source_endpoint": "/text-to-speech",
+    "target_endpoint": "/server/text-to-speech/",
+    "target": "advancedio",
+    "method": "POST",
+    "throttling": {
+      "overall": {},
+      "ip": {}
+    }
   }
 ]

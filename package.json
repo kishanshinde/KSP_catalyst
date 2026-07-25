@@ -1,11 +1,16 @@
 {
   "private": true,
   "scripts": {
-    "serve": "catalyst serve --no-open --except functions:convokraftHandler",
-    "serve:open": "catalyst serve --except functions:convokraftHandler"
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm run serve\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd react-vite && npm run dev",
+    "serve": "catalyst serve --no-open",
+    "serve:open": "catalyst serve"
   },
   "dependencies": {
     "@sentropic/graphify": "^0.17.1",
     "zcatalyst-sdk-node": "^3.4.0"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.4"
   }
 }

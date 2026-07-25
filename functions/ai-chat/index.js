@@ -847,10 +847,6 @@ module.exports = async (req, res) => {
             console.log('[ai-chat] Original Language:', originalLanguage);
             console.log('[ai-chat] Normalized Query:', normalizedQuery);
 
-            // ✅ STEP 2: Initialize Catalyst
-            const app = catalyst.initialize(req);
-            const zcql = app.zcql();
-
             // Resolve the logged-in user's Datastore row (users table)
             const resolvedUser = await resolveUserRow(app, req);
             if (!resolvedUser) {
