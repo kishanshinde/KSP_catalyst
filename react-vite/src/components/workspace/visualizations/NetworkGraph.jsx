@@ -74,28 +74,59 @@ export default function NetworkGraph({ data, onNodeSelect }) {
     return () => obs.disconnect()
   }, [])
 
+  // Nodes whose label matches the search text — the search "hits" that the
+  // rest of the visible subgraph is built around.
+  const searchMatchIds = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query || !graphData?.nodes) return null
+    return new Set(
+      graphData.nodes.filter((n) => n.label?.toLowerCase().includes(query)).map((n) => n.id)
+    )
+  }, [graphData, searchQuery])
+
   const filteredData = useMemo(() => {
     if (!graphData?.nodes) return { nodes: [], edges: [] }
     const activeFilters = Object.entries(filters).filter(([, v]) => v).map(([k]) => k)
-    const visibleNodes = graphData.nodes.filter((n) => {
-      if (!activeFilters.includes(n.type) && n.type !== 'central') return false
-      if (searchQuery && !n.label?.toLowerCase().includes(searchQuery.toLowerCase())) return false
-      return true
-    })
+    const typeVisible = (n) => activeFilters.includes(n.type) || n.type === 'central'
+
+    // With an active search, show matched nodes plus everyone directly
+    // connected to them (and the edges between), instead of collapsing the
+    // graph down to isolated text matches with no relations shown.
+    if (searchMatchIds) {
+      if (searchMatchIds.size === 0) return { nodes: [], edges: [] }
+      const relatedEdges = graphData.edges.filter((e) => {
+        const src = e.source?.id || e.source
+        const tgt = e.target?.id || e.target
+        return searchMatchIds.has(src) || searchMatchIds.has(tgt)
+      })
+      const relatedIds = new Set(searchMatchIds)
+      for (const e of relatedEdges) {
+        relatedIds.add(e.source?.id || e.source)
+        relatedIds.add(e.target?.id || e.target)
+      }
+      const visibleNodes = graphData.nodes.filter((n) => relatedIds.has(n.id) && typeVisible(n))
+      const visibleIds = new Set(visibleNodes.map((n) => n.id))
+      const visibleEdges = relatedEdges.filter((e) =>
+        visibleIds.has(e.source?.id || e.source) && visibleIds.has(e.target?.id || e.target)
+      )
+      return { nodes: visibleNodes, edges: visibleEdges }
+    }
+
+    const visibleNodes = graphData.nodes.filter(typeVisible)
     const visibleIds = new Set(visibleNodes.map((n) => n.id))
     const visibleEdges = graphData.edges.filter((e) =>
       visibleIds.has(e.source?.id || e.source) && visibleIds.has(e.target?.id || e.target)
     )
     return { nodes: visibleNodes, edges: visibleEdges }
-  }, [graphData, filters, searchQuery])
+  }, [graphData, filters, searchMatchIds])
 
   // react-force-graph mutates node/link objects in place (adds x/y/vx/vy, and
   // resolves link.source/target from ids to node refs) — clone per filtered
   // set so switching filters/search doesn't feed it stale mutated objects.
   const graphPayload = useMemo(() => ({
-    nodes: filteredData.nodes.map((n) => ({ ...n })),
+    nodes: filteredData.nodes.map((n) => ({ ...n, isSearchMatch: searchMatchIds?.has(n.id) || false })),
     links: filteredData.edges.map((e) => ({ ...e })),
-  }), [filteredData])
+  }), [filteredData, searchMatchIds])
 
   const highlightedIds = useMemo(() => {
     if (!selectedNode) return null
@@ -200,11 +231,20 @@ export default function NetworkGraph({ data, onNodeSelect }) {
       ctx.setLineDash([4, 3])
       ctx.stroke()
       ctx.setLineDash([])
+    } else if (node.isSearchMatch) {
+      ctx.beginPath()
+      ctx.arc(node.x, node.y, r + 6, 0, 2 * Math.PI)
+      ctx.strokeStyle = '#FBBF24'
+      ctx.globalAlpha = 0.9
+      ctx.lineWidth = 2
+      ctx.setLineDash([4, 3])
+      ctx.stroke()
+      ctx.setLineDash([])
     }
 
     // Hundreds of labels at once is unreadable soup — only draw them once
     // zoomed in enough to actually read, or for the selected/central node.
-    const showLabel = globalScale > 1.1 || node.type === 'central' || selectedNode?.id === node.id
+    const showLabel = globalScale > 1.1 || node.type === 'central' || selectedNode?.id === node.id || node.isSearchMatch
     if (showLabel) {
       const fontSize = (node.type === 'central' ? 13 : 11) / globalScale
       ctx.font = `${node.type === 'central' ? 'bold ' : ''}${fontSize}px Inter, sans-serif`
@@ -290,8 +330,18 @@ export default function NetworkGraph({ data, onNodeSelect }) {
       </div>
 
       <div className="absolute top-3 right-3 z-10 text-[10px] text-slate-500 dark:text-slate-400 bg-white/90 dark:bg-slate-900/60 border border-slate-300/70 dark:border-transparent px-2 py-1 rounded-md shadow-sm">
-        {graphData.nodes.length} {t('workspace.nodes') || 'nodes'} &middot; {graphData.edges.length} {t('workspace.edges') || 'edges'}
+        {searchMatchIds
+          ? `${filteredData.nodes.length} / ${graphData.nodes.length} ${t('workspace.nodes') || 'nodes'} · ${filteredData.edges.length} ${t('workspace.edges') || 'edges'}`
+          : `${graphData.nodes.length} ${t('workspace.nodes') || 'nodes'} · ${graphData.edges.length} ${t('workspace.edges') || 'edges'}`}
       </div>
+
+      {searchMatchIds && filteredData.nodes.length === 0 && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+          <div className="text-xs text-slate-500 dark:text-slate-400 bg-white/90 dark:bg-slate-900/80 border border-slate-300/70 dark:border-slate-700/50 rounded-lg px-4 py-2 shadow-lg">
+            No nodes match &ldquo;{searchQuery.trim()}&rdquo;
+          </div>
+        </div>
+      )}
 
       <ForceGraph2D
         ref={graphRef}

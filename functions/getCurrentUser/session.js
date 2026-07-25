@@ -30,7 +30,10 @@ function extractBearerToken(rawHeader) {
 
 async function validateSessionToken(catalystApp, rawHeader) {
     const rawToken = extractBearerToken(rawHeader);
-    if (!rawToken) return null;
+    if (!rawToken) {
+        console.warn('[session] No token in request header');
+        return null;
+    }
 
     const tokenHash = hashToken(rawToken);
     const zcql = catalystApp.zcql();
@@ -38,19 +41,34 @@ async function validateSessionToken(catalystApp, rawHeader) {
     const sessionRows = await zcql.executeZCQLQuery(
         `SELECT ROWID, user_rowid, expires_at, revoked_at FROM user_sessions WHERE session_token_hash = '${tokenHash}'`
     );
-    if (!sessionRows || sessionRows.length === 0) return null;
+    if (!sessionRows || sessionRows.length === 0) {
+        console.warn('[session] No user_sessions row for token hash', tokenHash);
+        return null;
+    }
 
     const session = sessionRows[0].user_sessions;
-    if (session.revoked_at) return null;
-    if (new Date(session.expires_at).getTime() <= Date.now()) return null;
+    if (session.revoked_at) {
+        console.warn('[session] Session revoked at', session.revoked_at, 'ROWID', session.ROWID);
+        return null;
+    }
+    if (new Date(session.expires_at).getTime() <= Date.now()) {
+        console.warn('[session] Session expired. expires_at =', session.expires_at, 'now =', new Date().toISOString(), 'ROWID', session.ROWID);
+        return null;
+    }
 
     const userRows = await zcql.executeZCQLQuery(
         `SELECT ROWID, full_name, email, role_rowid, is_active, phone_number FROM users WHERE ROWID = ${session.user_rowid}`
     );
-    if (!userRows || userRows.length === 0) return null;
+    if (!userRows || userRows.length === 0) {
+        console.warn('[session] No users row for user_rowid', session.user_rowid);
+        return null;
+    }
 
     const user = userRows[0].users;
-    if (user.is_active === false) return null;
+    if (user.is_active === false) {
+        console.warn('[session] User is inactive, ROWID', user.ROWID);
+        return null;
+    }
 
     try {
         await catalystApp.datastore().table('user_sessions').updateRow({
