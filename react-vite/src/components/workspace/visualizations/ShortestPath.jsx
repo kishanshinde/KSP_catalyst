@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useLanguage } from '../../../contexts/LanguageContext'
-import { mockCriminalNetworkData } from '../../../services/mockCriminalNetwork'
 
 export default function ShortestPath({ data }) {
   const { t } = useLanguage()
@@ -9,13 +8,11 @@ export default function ShortestPath({ data }) {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  const dataWithMock = data?.nodes ? data : mockCriminalNetworkData
-
-  if (!dataWithMock?.nodes) {
+  if (!data?.nodes) {
     return <div className="text-on-surface-variant/60 dark:text-slate-500 text-sm">{t('workspace.noData')}</div>
   }
 
-  const persons = dataWithMock.nodes.filter(n => n.type === 'accused' || n.type === 'central' || n.type === 'victim')
+  const persons = data.nodes.filter(n => n.type === 'accused' || n.type === 'central' || n.type === 'victim')
 
   const findPath = () => {
     if (!source || !target) return
@@ -31,8 +28,8 @@ export default function ShortestPath({ data }) {
     }
 
     const adj = new Map()
-    for (const n of dataWithMock.nodes) adj.set(n.id, [])
-    for (const e of dataWithMock.edges) {
+    for (const n of data.nodes) adj.set(n.id, [])
+    for (const e of data.edges) {
       const s = e.source?.id || e.source
       const t2 = e.target?.id || e.target
       if (adj.has(s)) adj.get(s).push(t2)
@@ -61,10 +58,10 @@ export default function ShortestPath({ data }) {
       const path = []
       let node = tgtNode.id
       while (node) { path.unshift(node); node = parent.get(node) }
-      const pathNodes = path.map(id => dataWithMock.nodes.find(n => n.id === id)).filter(Boolean)
+      const pathNodes = path.map(id => data.nodes.find(n => n.id === id)).filter(Boolean)
       const pathEdges = []
       for (let i = 0; i < path.length - 1; i++) {
-        const edge = dataWithMock.edges.find(e =>
+        const edge = data.edges.find(e =>
           (e.source?.id || e.source) === path[i] && (e.target?.id || e.target) === path[i + 1] ||
           (e.target?.id || e.target) === path[i] && (e.source?.id || e.source) === path[i + 1]
         )
