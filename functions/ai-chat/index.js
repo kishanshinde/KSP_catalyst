@@ -493,10 +493,7 @@ async function translateWithLLM(text, sourceLang, targetLang, token, retryCount 
         const sourceName = languageMap[sourceLang] || sourceLang;
         const targetName = languageMap[targetLang] || targetLang;
 
-        let cleanText = text;
-        cleanText = cleanText.replace(/\*\*/g, '');
-        cleanText = cleanText.replace(/\*/g, '');
-        cleanText = cleanText.replace(/\s+/g, ' ').trim();
+        const cleanText = text.trim();
 
         if (cleanText.length < 2) {
             resolve(text);
@@ -504,14 +501,14 @@ async function translateWithLLM(text, sourceLang, targetLang, token, retryCount 
         }
 
         const systemPrompt = `You are a professional translator. Translate the following text from ${sourceName} to ${targetName}.
-        
+
 IMPORTANT RULES:
 1. Translate accurately and naturally
 2. Preserve the meaning and tone
 3. Return ONLY the translated text, nothing else
-4. Do not add any explanations, notes, or markdown formatting
+4. Do not add any explanations or notes
 5. If the text is a question, translate it as a question
-6. Keep the structure similar (bullet points, numbered lists if present)
+6. The source text may contain Markdown syntax: "#", "##", "###" headings, "**bold**", "- " bullet list items, and line breaks. Preserve every one of these symbols and every line break EXACTLY in the same position in the output. Translate ONLY the human-readable words — never translate, remove, or reformat the Markdown symbols themselves
 7. Return the translation in ${targetName} script only`;
 
         const userPrompt = `Translate this text from ${sourceName} to ${targetName}:

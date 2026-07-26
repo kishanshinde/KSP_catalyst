@@ -88,9 +88,9 @@ export default function HomePage() {
       {/* Intelligence Workspace */}
       <section className="max-w-[1600px] mx-auto space-y-8 px-6">
         <div id="fir-explorer"><RecentCases /></div>
-        <div id="hotspots"><LiveHotspots /></div>
-        <div id="crime-analytics"><CrimeTrends /></div>
         <div id="criminal-networks"><CriminalNetworkViz /></div>
+        <div id="crime-analytics"><CrimeTrends /></div>
+        <div id="hotspots"><LiveHotspots /></div>
       </section>
 
       <SystemFooter />
