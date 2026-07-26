@@ -3,6 +3,7 @@ const { registerFonts, THEME } = require('../shared/pdfTheme');
 const { renderHeader } = require('../shared/pdfHeader');
 const { renderFooter } = require('../shared/pdfFooter');
 const { sanitizeFilename } = require('../shared/helpers');
+const { renderMarkdown } = require('../shared/pdfMarkdown');
 
 async function generate(data) {
     const { conversationId, conversation, conversation_title, question, response, created_at, language } = data;
@@ -62,8 +63,7 @@ async function generate(data) {
         doc.text(`${role}:`);
         doc.moveDown(0.2);
 
-        doc.fontSize(9).font(THEME.fonts.regular);
-        doc.text(content, { indent: 10 });
+        renderMarkdown(doc, content, { fontSize: 9 });
         doc.moveDown(0.5);
     }
 

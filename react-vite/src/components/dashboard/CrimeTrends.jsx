@@ -25,10 +25,13 @@ function SkeletonRow() {
   )
 }
 
+const DEFAULT_BAR_COLOR = '#004ac6'
+
 export default function CrimeTrends() {
   const { data, loading, error, refresh, year, setYear, month, setMonth } = useCrimeTrends()
   const [generating, setGenerating] = useState(false)
   const [pdfSuccess, setPdfSuccess] = useState(false)
+  const [barColor, setBarColor] = useState(DEFAULT_BAR_COLOR)
 
   const handleGeneratePDF = useCallback(async () => {
     if (!data || generating) return
@@ -39,7 +42,8 @@ export default function CrimeTrends() {
       const blob = await generateReport({
         reportType: 'crime_trends',
         ...data,
-        generatedAt: data.metadata?.generatedAt
+        generatedAt: data.metadata?.generatedAt,
+        barColor
       })
 
       const url = URL.createObjectURL(blob)
@@ -62,7 +66,7 @@ export default function CrimeTrends() {
     } finally {
       setGenerating(false)
     }
-  }, [data, generating])
+  }, [data, generating, barColor])
 
   if (error && !data) {
     return (
@@ -97,14 +101,26 @@ export default function CrimeTrends() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3 tracking-tight">
             <BarChart3 className="w-6 h-6 text-primary" aria-hidden="true" />
-            Crime Trends
+            Crime Analytics
           </h2>
-          <PeriodSelector
-            year={year}
-            month={month}
-            onYearChange={setYear}
-            onMonthChange={setMonth}
-          />
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 cursor-pointer">
+              Chart color
+              <input
+                type="color"
+                value={barColor}
+                onChange={(e) => setBarColor(e.target.value)}
+                className="h-7 w-10 rounded-md border border-outline-variant dark:border-slate-700 cursor-pointer bg-transparent"
+                title="Choose the chart bar color — used here and in the downloaded PDF"
+              />
+            </label>
+            <PeriodSelector
+              year={year}
+              month={month}
+              onYearChange={setYear}
+              onMonthChange={setMonth}
+            />
+          </div>
         </div>
 
         {loading && !data ? (
@@ -122,7 +138,7 @@ export default function CrimeTrends() {
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
               <div className="xl:col-span-8">
-                <CrimeTrendChart chart={data.chart} isMonthView={!data.month} />
+                <CrimeTrendChart chart={data.chart} isMonthView={!data.month} barColor={barColor} />
               </div>
               <div className="xl:col-span-4">
                 <CrimeDistribution crimeTypes={data.crimeTypes} />

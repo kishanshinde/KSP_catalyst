@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts'
+import { useTheme } from '../../contexts/ThemeContext'
 
 function CustomTooltip({ active, payload }) {
   if (!active || !payload || !payload.length) return null
@@ -22,13 +23,13 @@ function CustomTooltip({ active, payload }) {
   )
 }
 
-export default function CrimeTrendChart({ chart, isMonthView }) {
-  const peakCount = useMemo(() => {
-    if (!chart || chart.length === 0) return 0
-    return Math.max(...chart.map(e => e.count))
-  }, [chart])
+export default function CrimeTrendChart({ chart, isMonthView, barColor = '#004ac6' }) {
+  const { isDark } = useTheme()
 
   const data = useMemo(() => chart || [], [chart])
+
+  const gridStroke = isDark ? '#334155' : '#e2e8f0'
+  const tickFill = isDark ? '#94a3b8' : '#64748b'
 
   if (!data.length) {
     return (
@@ -47,10 +48,10 @@ export default function CrimeTrendChart({ chart, isMonthView }) {
       <div className="h-[420px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 16, left: -8, bottom: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:opacity-20" />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 12, fill: '#64748b' }}
+              tick={{ fontSize: 12, fill: tickFill }}
               axisLine={false}
               tickLine={false}
               interval={0}
@@ -59,7 +60,7 @@ export default function CrimeTrendChart({ chart, isMonthView }) {
               height={isMonthView ? 60 : 30}
             />
             <YAxis
-              tick={{ fontSize: 12, fill: '#64748b' }}
+              tick={{ fontSize: 12, fill: tickFill }}
               axisLine={false}
               tickLine={false}
               allowDecimals={false}
@@ -67,15 +68,12 @@ export default function CrimeTrendChart({ chart, isMonthView }) {
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0, 74, 198, 0.05)' }} />
             <Bar
               dataKey="count"
+              fill={barColor}
               radius={[4, 4, 0, 0]}
               animationBegin={0}
               animationDuration={600}
               animationEasing="ease-out"
-            >
-              {data.map((entry, index) => (
-                <rect key={index} fill={entry.count === peakCount && entry.count > 0 ? '#dc2626' : '#004ac6'} />
-              ))}
-            </Bar>
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>

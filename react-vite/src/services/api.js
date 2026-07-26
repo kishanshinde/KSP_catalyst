@@ -1,4 +1,5 @@
 import { mockDashboardResponse } from './mockData'
+import { getAuthHeader } from './catalystAuth'
 
 const USE_MOCK = false
 
@@ -26,9 +27,16 @@ async function requestGet(endpoint, params, options = {}) {
     : controller.signal
 
   try {
+    const authHeader = await getAuthHeader()
     const response = await fetch(`${API_BASE}${endpoint}${query}`, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        'Cache-Control': 'no-cache',
+        ...authHeader,
+      },
+      credentials: 'include',
+      cache: 'no-store',
       signal,
     })
 
@@ -80,9 +88,17 @@ async function request(endpoint, body, options = {}) {
     : controller.signal
 
   try {
+    const authHeader = await getAuthHeader()
     const response = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        ...authHeader,
+      },
+      credentials: 'include',
+      cache: 'no-store',
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal,
     })
@@ -131,9 +147,17 @@ async function requestBlob(endpoint, body, options = {}) {
     : controller.signal
 
   try {
+    const authHeader = await getAuthHeader()
     const response = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Accept: 'application/pdf,application/json',
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        ...authHeader,
+      },
+      credentials: 'include',
+      cache: 'no-store',
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal,
     })
@@ -175,11 +199,6 @@ async function requestBlob(endpoint, body, options = {}) {
 function normalizeAIResponse(raw) {
   return {
     success: raw.success !== false,
-
-    conversation: {
-      id: raw.conversation?.id ?? null,
-      title: raw.conversation?.title ?? null,
-    },
 
     assistant: raw.assistant || {
       role: 'assistant',
@@ -253,7 +272,7 @@ export const api = {
     if (USE_MOCK) {
       return Promise.resolve(mockDashboardResponse())
     }
-    return request('/dashboardAggregation')
+    return requestGet('/dashboardAggregation')
   },
 
   saveConversation(data) {
@@ -272,7 +291,7 @@ export const api = {
         ],
       })
     }
-    return request('/listConversations')
+    return requestGet('/listConversations')
   },
 
   getConversation(conversationId) {
@@ -374,6 +393,46 @@ export const api = {
     return requestGet('/RecentCases', null, options)
   },
 
+  getCrimeHeatmap(options = {}) {
+    if (USE_MOCK) {
+      return Promise.resolve({
+        success: true,
+        totalLocations: 2,
+        totalCases: 3,
+        locations: [
+          {
+            id: 'mock_loc_1',
+            district: 'Bengaluru Urban',
+            taluk: 'Bengaluru East',
+            city: 'Indiranagar',
+            pincode: '560038',
+            lat: 12.9716,
+            lng: 77.6412,
+            caseCount: 2,
+            cases: [
+              { firNumber: 'FIR-2026-0012', status: 'Open', statusColor: '#10B981', priority: 'High', priorityColor: '#F97316', dateRegistered: '14 Apr 2026' },
+              { firNumber: 'FIR-2026-0045', status: 'Under Investigation', statusColor: '#F59E0B', priority: 'Critical', priorityColor: '#DC2626', dateRegistered: '10 Apr 2026' },
+            ],
+          },
+          {
+            id: 'mock_loc_2',
+            district: 'Mysuru',
+            taluk: 'Mysuru North',
+            city: 'Mysuru',
+            pincode: '570001',
+            lat: 12.2958,
+            lng: 76.6394,
+            caseCount: 1,
+            cases: [
+              { firNumber: 'FIR-2026-0089', status: 'Registered', statusColor: '#3B82F6', priority: 'Medium', priorityColor: '#EAB308', dateRegistered: '05 Apr 2026' },
+            ],
+          },
+        ],
+      })
+    }
+    return requestGet('/CrimeheatMap', null, options)
+  },
+
   async generateCrimeTrendsReport(data) {
     if (USE_MOCK) {
       return { blob: new Blob(['mock pdf'], { type: 'application/pdf' }) }
@@ -394,6 +453,54 @@ export const api = {
       return Promise.resolve({ success: true })
     }
     return request('/deleteConversation', { conversationId })
+  },
+
+  getCNASummary(options = {}) {
+    return request('/criminal-network-analysis', { action: 'get_summary' }, options)
+  },
+
+  searchCNANetwork({ searchType, searchQuery, depth }, options = {}) {
+    return request('/criminal-network-analysis', {
+      action: 'get_full_network',
+      params: { search_type: searchType, search_query: searchQuery, depth },
+    }, options)
+  },
+
+  getCNAFullNetwork(options = {}) {
+    return request('/criminal-network-analysis', { action: 'get_full_network' }, options)
+  },
+
+  async transcribeAudio(audioBlob) {
+    if (USE_MOCK) {
+      return { success: true, text: 'Mock STT: show all repeat offenders in Bangalore', language: 'en' }
+    }
+    const response = await fetch(`${API_BASE}/speech-to-text`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'audio/webm',
+      },
+      body: audioBlob,
+    })
+    if (!response.ok) {
+      throw new Error('Transcription failed')
+    }
+    return response.json()
+  },
+
+  async synthesizeSpeech(text) {
+    if (USE_MOCK) {
+      const rawSilence = 'UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA=='
+      const byteCharacters = atob(rawSilence)
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: 'audio/wav' })
+      return { blob }
+    }
+    const blob = await requestBlob('/text-to-speech', { text })
+    return { blob }
   },
 }
 

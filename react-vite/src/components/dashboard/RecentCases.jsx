@@ -61,9 +61,6 @@ export default function RecentCases() {
           {t('landing.activeCases')}
         </h3>
         <div className="flex items-center gap-3">
-          <span className="bg-primary/10 text-primary text-[11px] px-4 py-1.5 rounded-full font-extrabold uppercase tracking-widest">
-            {data ? `${data.total ?? sorted.length} ${t('landing.totalInvestigations')}` : t('landing.totalInvestigations')}
-          </span>
           <button
             onClick={refresh}
             disabled={loading}
