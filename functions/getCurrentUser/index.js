@@ -4,9 +4,8 @@ const catalyst = require('zcatalyst-sdk-node');
 const { validateSessionToken, fetchRoleName, toPublicUser } = require('./session');
 
 function setCorsHeaders(req, res) {
-    const origin = req?.headers?.origin || 'http://localhost:3001';
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    // Catalyst API Gateway automatically injects Access-Control-Allow-Origin & Access-Control-Allow-Credentials.
+    // Setting them here causes duplicate headers in responses, triggering browser CORS failures.
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-Token');
 }

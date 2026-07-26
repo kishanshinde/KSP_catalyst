@@ -5,12 +5,13 @@ import { getAuthHeader, getSessionToken, setSessionToken, clearSessionToken } fr
 const AuthContext = createContext(null)
 export const POST_LOGIN_REDIRECT_KEY = 'ksp_lumina_post_login_redirect'
 
-const API_BASE = import.meta.env.VITE_API_URL || ''
+const API_BASE = ''
 
 async function postAuthAction(action, body, authHeader = {}) {
   const response = await fetch(`${API_BASE}/authentication`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeader },
+    credentials: 'include',
     body: JSON.stringify({ action, ...body }),
   })
   const payload = await response.json().catch(() => ({}))
@@ -27,6 +28,7 @@ async function fetchCurrentUser() {
     const authHeader = await getAuthHeader()
     const response = await fetch(`${API_BASE}/getCurrentUser`, {
       headers: { Accept: 'application/json', ...authHeader },
+      credentials: 'include',
       cache: 'no-store',
     })
 

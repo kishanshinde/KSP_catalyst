@@ -3,7 +3,6 @@ const { resolveUserRow } = require("./resolveUser");
 
 module.exports = (req, res) => {
     return new Promise((resolve) => {
-        res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Session-Token');
 
@@ -28,7 +27,6 @@ module.exports = (req, res) => {
 };
 
 function setCorsHeaders(res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Session-Token');
 }

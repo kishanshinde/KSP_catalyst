@@ -2,6 +2,14 @@ const catalyst = require("zcatalyst-sdk-node");
 
 module.exports = (req, res) => {
     return new Promise((resolve, reject) => {
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Session-Token');
+
+        if (req.method === 'OPTIONS') {
+            res.writeHead(200);
+            res.end();
+            return resolve();
+        }
         if (req.body && Object.keys(req.body).length > 0) {
             processLog(req.body, req, res, resolve);
         } else {
