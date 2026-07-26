@@ -4,7 +4,7 @@
     "source_endpoint": "/getCurrentUser",
     "target_endpoint": "/server/getCurrentUser/",
     "target": "advancedio",
-    "method": "GET",
+    "method": "ANY",
     "throttling": {
       "overall": {},
       "ip": {}
@@ -76,7 +76,7 @@
     "source_endpoint": "/logEvidence",
     "target_endpoint": "/server/logEvidence/",
     "target": "advancedio",
-    "method": "POST",
+    "method": "ANY",
     "throttling": {
       "overall": {},
       "ip": {}
@@ -88,7 +88,7 @@
     "source_endpoint": "/dashboardAggregation",
     "target_endpoint": "/server/dashboardAggregation/",
     "target": "advancedio",
-    "method": "GET",
+    "method": "ANY",
     "throttling": {
       "overall": {},
       "ip": {}
@@ -100,7 +100,7 @@
     "source_endpoint": "/listConversations",
     "target_endpoint": "/server/listConversations/",
     "target": "advancedio",
-    "method": "GET",
+    "method": "ANY",
     "throttling": {
       "overall": {},
       "ip": {}
@@ -112,7 +112,7 @@
     "source_endpoint": "/renameConversation",
     "target_endpoint": "/server/renameConversation/",
     "target": "advancedio",
-    "method": "POST",
+    "method": "ANY",
     "throttling": {
       "overall": {},
       "ip": {}
@@ -124,7 +124,7 @@
     "source_endpoint": "/deleteConversation",
     "target_endpoint": "/server/deleteConversation/",
     "target": "advancedio",
-    "method": "POST",
+    "method": "ANY",
     "throttling": {
       "overall": {},
       "ip": {}
@@ -136,7 +136,7 @@
     "source_endpoint": "/CrimeTrends",
     "target_endpoint": "/server/CrimeTrends/",
     "target": "advancedio",
-    "method": "GET",
+    "method": "ANY",
     "throttling": {
       "overall": {},
       "ip": {}
@@ -148,7 +148,7 @@
     "source_endpoint": "/RecentCases",
     "target_endpoint": "/server/RecentCases/",
     "target": "advancedio",
-    "method": "GET",
+    "method": "ANY",
     "throttling": {
       "overall": {},
       "ip": {}
@@ -194,7 +194,7 @@
     "source_endpoint": "/speech-to-text",
     "target_endpoint": "/server/speech-to-text/",
     "target": "advancedio",
-    "method": "POST",
+    "method": "ANY",
     "throttling": {
       "overall": {},
       "ip": {}
@@ -205,7 +205,7 @@
     "source_endpoint": "/text-to-speech",
     "target_endpoint": "/server/text-to-speech/",
     "target": "advancedio",
-    "method": "POST",
+    "method": "ANY",
     "throttling": {
       "overall": {},
       "ip": {}

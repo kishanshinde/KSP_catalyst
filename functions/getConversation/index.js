@@ -3,9 +3,6 @@ const { resolveUserRow } = require("./resolveUser");
 
 module.exports = (req, res) => {
     return new Promise((resolve) => {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Session-Token');
 
         if (req.method === 'OPTIONS') {
             res.writeHead(200);
@@ -32,18 +29,11 @@ module.exports = (req, res) => {
     });
 };
 
-function setCorsHeaders(res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Session-Token');
-}
-
 async function processAndFetch(body, req, res, resolve) {
     try {
         const { conversationId } = body;
 
         if (!conversationId) {
-            setCorsHeaders(res);
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ success: false, message: "conversationId is required." }));
             return resolve();
@@ -57,7 +47,6 @@ async function processAndFetch(body, req, res, resolve) {
         // incrementing conversationId, regardless of who actually owns it.
         const resolved = await resolveUserRow(catalystApp, req);
         if (!resolved) {
-            setCorsHeaders(res);
             res.writeHead(401, { "Content-Type": "application/json" });
             res.end(JSON.stringify({
                 success: false,
@@ -78,7 +67,6 @@ async function processAndFetch(body, req, res, resolve) {
         const queryResult = await zcql.executeZCQLQuery(query);
 
         if (!queryResult || queryResult.length === 0) {
-            setCorsHeaders(res);
             res.writeHead(404, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ success: false, message: "Conversation not found." }));
             return resolve();
@@ -106,7 +94,6 @@ async function processAndFetch(body, req, res, resolve) {
             messages,
         };
 
-        setCorsHeaders(res);
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({
             success: true,
@@ -116,7 +103,6 @@ async function processAndFetch(body, req, res, resolve) {
 
     } catch (error) {
         console.error("Get Conversation Error:", error);
-        setCorsHeaders(res);
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({
             success: false,

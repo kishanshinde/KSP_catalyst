@@ -5,9 +5,6 @@ const catalyst = require('zcatalyst-sdk-node');
 module.exports = async (req, res) => {
 
     // CORS Headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     // Handle Preflight Requests
     if (req.method === 'OPTIONS') {
@@ -155,10 +152,7 @@ module.exports = async (req, res) => {
 
                 // Send response
                 res.writeHead(200, {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Content-Type'
+                    'Content-Type': 'application/json'
                 });
 
                 res.end(JSON.stringify({
@@ -172,10 +166,7 @@ module.exports = async (req, res) => {
             } catch (error) {
                 console.error('Query Execution Error:', error);
                 res.writeHead(400, {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Content-Type'
+                    'Content-Type': 'application/json'
                 });
 
                 res.end(JSON.stringify({
@@ -189,10 +180,7 @@ module.exports = async (req, res) => {
     } catch (error) {
         console.error('Server Error:', error);
         res.writeHead(500, {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
+            'Content-Type': 'application/json'
         });
 
         res.end(JSON.stringify({

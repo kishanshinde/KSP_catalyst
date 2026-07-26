@@ -1,6 +1,13 @@
 const catalyst = require("zcatalyst-sdk-node");
 
 module.exports = (req, res) => {
+
+    if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return Promise.resolve();
+    }
+
     return new Promise((resolve, reject) => {
         if (req.body && Object.keys(req.body).length > 0) {
             processLog(req.body, req, res, resolve);

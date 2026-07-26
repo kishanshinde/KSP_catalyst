@@ -4,9 +4,6 @@ const reportFactory = require('./reportFactory');
 
 module.exports = (req, res) => {
     return new Promise((resolve) => {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
         if (req.method === 'OPTIONS') {
             res.writeHead(200);
@@ -119,8 +116,7 @@ function streamPDF(doc, res, resolve, title) {
         res.writeHead(200, {
             "Content-Type": "application/pdf",
             "Content-Disposition": `attachment; filename="${sanitizeFilename(title)}.pdf"`,
-            "Content-Length": pdfBuffer.length,
-            'Access-Control-Allow-Origin': '*',
+            "Content-Length": pdfBuffer.length
         });
         res.end(pdfBuffer);
         resolve();
