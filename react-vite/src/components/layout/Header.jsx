@@ -52,14 +52,6 @@ export default function Header() {
         <h1 className="text-xl font-bold text-on-surface dark:text-white tracking-tight">
           {t('header.brand')} <span className="text-primary">{t('header.brandHighlight')}</span>
         </h1>
-        <div className="hidden xl:flex items-center bg-slate-100/50 dark:bg-slate-800/50 px-5 py-2.5 rounded-full border border-outline-variant dark:border-slate-700 w-96 ml-6">
-          <span className="material-symbols-outlined text-slate-400 dark:text-slate-500 mr-2 text-xl">search</span>
-          <input
-            className="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none text-on-surface dark:text-slate-200"
-            placeholder={t('header.searchPlaceholder')}
-            type="text"
-          />
-        </div>
       </div>
 
       <div className="flex items-center gap-5">
