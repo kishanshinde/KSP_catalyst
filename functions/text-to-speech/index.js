@@ -2,9 +2,6 @@ const catalyst = require('zcatalyst-sdk-node');
 
 module.exports = async (req, res) => {
     // Handle CORS preflight
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
         res.writeHead(200);

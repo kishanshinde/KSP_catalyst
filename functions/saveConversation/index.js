@@ -114,9 +114,6 @@ IMPORTANT RULES:
 module.exports = (req, res) => {
     return new Promise((resolve) => {
         // CORS headers
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Session-Token');
 
         if (req.method === 'OPTIONS') {
             res.writeHead(200);
@@ -142,12 +139,6 @@ module.exports = (req, res) => {
         });
     });
 };
-
-function setCorsHeaders(res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Session-Token');
-}
 
 async function processAndSave(body, req, res, resolve) {
     try {
@@ -183,7 +174,6 @@ async function processAndSave(body, req, res, resolve) {
         // Resolve the logged-in user's Datastore row (users table)
         const resolved = await resolveUserRow(catalystApp, req);
         if (!resolved) {
-            setCorsHeaders(res);
             res.writeHead(401, { "Content-Type": "application/json" });
             res.end(JSON.stringify({
                 success: false,
@@ -233,7 +223,6 @@ async function processAndSave(body, req, res, resolve) {
             console.log("Executing ZCQL UPDATE:", updateQuery);
             await zcql.executeZCQLQuery(updateQuery);
 
-            setCorsHeaders(res);
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({
                 success: true,
@@ -291,7 +280,6 @@ async function processAndSave(body, req, res, resolve) {
 
             const newId = queryResult?.[0]?.conversation_history?.ROWID || null;
 
-            setCorsHeaders(res);
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({
                 success: true,
@@ -305,7 +293,6 @@ async function processAndSave(body, req, res, resolve) {
 
     } catch (error) {
         console.error("Database Save Exception:", error);
-        setCorsHeaders(res);
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({
             success: false,

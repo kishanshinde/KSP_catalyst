@@ -3,9 +3,6 @@ const { resolveUserRow } = require("./resolveUser");
 
 module.exports = (req, res) => {
     return new Promise((resolve) => {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Session-Token');
 
         if (req.method === 'OPTIONS') {
             res.writeHead(200);
@@ -27,25 +24,17 @@ module.exports = (req, res) => {
     });
 };
 
-function setCorsHeaders(res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Session-Token');
-}
-
 async function processRename(body, req, res, resolve) {
     try {
         const { conversationId, conversation_title } = body;
 
         if (!conversationId) {
-            setCorsHeaders(res);
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ success: false, message: "conversationId is required." }));
             return resolve();
         }
 
         if (!conversation_title) {
-            setCorsHeaders(res);
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ success: false, message: "conversation_title is required." }));
             return resolve();
@@ -58,7 +47,6 @@ async function processRename(body, req, res, resolve) {
         // caller could rename any conversation just by guessing its ID.
         const resolved = await resolveUserRow(catalystApp, req);
         if (!resolved) {
-            setCorsHeaders(res);
             res.writeHead(401, { "Content-Type": "application/json" });
             res.end(JSON.stringify({
                 success: false,
@@ -80,7 +68,6 @@ async function processRename(body, req, res, resolve) {
         console.log("Executing ZCQL UPDATE:", query);
         await zcql.executeZCQLQuery(query);
 
-        setCorsHeaders(res);
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({
             success: true,
@@ -90,7 +77,6 @@ async function processRename(body, req, res, resolve) {
 
     } catch (error) {
         console.error("Rename Conversation Error:", error);
-        setCorsHeaders(res);
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({
             success: false,

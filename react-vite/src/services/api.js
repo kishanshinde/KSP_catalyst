@@ -35,7 +35,6 @@ async function requestGet(endpoint, params, options = {}) {
         'Cache-Control': 'no-cache',
         ...authHeader,
       },
-      credentials: 'include',
       cache: 'no-store',
       signal,
     })
@@ -97,7 +96,6 @@ async function request(endpoint, body, options = {}) {
         'Cache-Control': 'no-cache',
         ...authHeader,
       },
-      credentials: 'include',
       cache: 'no-store',
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal,
@@ -156,7 +154,6 @@ async function requestBlob(endpoint, body, options = {}) {
         'Cache-Control': 'no-cache',
         ...authHeader,
       },
-      credentials: 'include',
       cache: 'no-store',
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal,
