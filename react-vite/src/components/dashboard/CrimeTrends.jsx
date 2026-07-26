@@ -101,7 +101,7 @@ export default function CrimeTrends() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3 tracking-tight">
             <BarChart3 className="w-6 h-6 text-primary" aria-hidden="true" />
-            Crime Trends
+            Crime Analytics
           </h2>
           <div className="flex items-center gap-4">
             <label className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 cursor-pointer">
