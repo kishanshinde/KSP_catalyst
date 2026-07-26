@@ -262,7 +262,7 @@ export const api = {
         },
       })
     }
-    return request('/ai-chat/', params, options).then(normalizeAIResponse)
+    return request('/ai-chat', params, options).then(normalizeAIResponse)
   },
 
   dashboard() {
