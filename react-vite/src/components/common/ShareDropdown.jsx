@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Share2, Link, FileText, Check, Loader2 } from 'lucide-react'
+import { Share2, FileText, Loader2 } from 'lucide-react'
 import Dropdown from './Dropdown'
 import Modal from './Modal'
 import Button from './Button'
@@ -9,17 +9,8 @@ import { useLanguage } from '../../contexts/LanguageContext'
 export default function ShareDropdown() {
   const { t } = useLanguage()
   const { currentId, exportConversationPDF } = useChat()
-  const [copySuccess, setCopySuccess] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
   const [exportLoading, setExportLoading] = useState(false)
-
-  const handleCopyLink = useCallback(() => {
-    const url = window.location.href
-    navigator.clipboard.writeText(url).then(() => {
-      setCopySuccess(true)
-      setTimeout(() => setCopySuccess(false), 2000)
-    }).catch(() => {})
-  }, [])
 
   const handleExportConfirm = useCallback(async () => {
     setExportLoading(true)
@@ -34,12 +25,6 @@ export default function ShareDropdown() {
   if (!currentId) return null
 
   const items = [
-    {
-      title: t('share.copyLink'),
-      description: t('share.copyLinkDescription'),
-      icon: copySuccess ? <Check size={18} className="text-green-600 dark:text-green-400" /> : <Link size={18} />,
-      onClick: handleCopyLink,
-    },
     {
       title: exportLoading ? t('share.exportPdfLoading') : t('share.exportPdf'),
       description: t('share.exportPdfDescription'),

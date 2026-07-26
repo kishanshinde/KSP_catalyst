@@ -111,9 +111,6 @@
 
   "share.share": "ಹಂಚಿಕೊಳ್ಳಿ",
   "share.shareOptions": "ಹಂಚಿಕೆ ಆಯ್ಕೆಗಳು",
-  "share.copyLink": "ಲಿಂಕ್ ನಕಲಿಸಿ",
-  "share.copyLinkSuccess": "ನಕಲಿಸಲಾಗಿದೆ!",
-  "share.copyLinkDescription": "ಸಂವಾದ ಲಿಂಕ್ ಅನ್ನು ಕ್ಲಿಪ್‌ಬೋರ್ಡ್‌ಗೆ ನಕಲಿಸಿ",
   "share.exportPdf": "ಪಿಡಿಎಫ್ ರಫ್ತು ಮಾಡಿ",
   "share.exportPdfDescription": "ಸಂವಾದವನ್ನು ಪಿಡಿಎಫ್ ಆಗಿ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ",
   "share.exportPdfLoading": "ಪಿಡಿಎಫ್ ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ...",

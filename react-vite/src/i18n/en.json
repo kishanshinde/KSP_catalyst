@@ -120,9 +120,6 @@
 
   "share.share": "Share",
   "share.shareOptions": "Share options",
-  "share.copyLink": "Copy Share Link",
-  "share.copyLinkSuccess": "Copied!",
-  "share.copyLinkDescription": "Copy conversation link to clipboard",
   "share.exportPdf": "Export PDF",
   "share.exportPdfDescription": "Download conversation as PDF",
   "share.exportPdfLoading": "Generating PDF...",
